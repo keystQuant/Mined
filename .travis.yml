@@ -1,0 +1,23 @@
+language: python
+python:
+- '3.6'
+dist: trusty
+sudo: required
+env:
+  global:
+  - DJANGO_VERSION=1.11
+  - TRAVIS=True
+  - secure: oO2993QwLKWIe41gbD5/OkYUjuiNMvyQ5CJIzS/3rrumgI56X0SADhN+AxEVPLFB68MgYwmiCvPj1ALXbzE8gFjXjt7bnCSV+m8X+p3kI4xf1DCA/8a2KuefvaviCQKzmcNSRuwYDLfNrahLkC/zMCVvpbQNQCexbnjpdPleSP7SWkkCCx9uFJLDEWl1rP6zP8QdqfoCGapBCl8EUoAxUjiuB4tKGXCcGRJriH6g5vmzlwOFuLRWJmXqxa+2kLXjxNVElAYWRSphs3tx/KS5enN3DBtUVdbsGBZGPKIYrv5BeUULdlpVwa0MGMdJ5RScUsA52VfP/XHp3XtFwSwsewX5iULR0fjb6306F2Ke9bipE22DcnC/91rIKIVI0XLOKkTCi2gJ1C1BkSG2J7hFCmItI4o3mhRCCamX1+NZWXoVnzJS9jyn+0g0tMthOjQa7+J0WjWDyNISN0nD3pg8Xt9g/ujYgQ9XhG2+UgKD1xhD+HkzJ6lnOQWbIjjOMtCTlbb5j5/0jCTjNWToW+t28tY01d594AMbWkKfzPjB/GS6A9oeR7QSPZcxDpNyd6olkhw4WQYlmFnpvR6ol5Q7BDPIcs80+SqOtHqVzKu5dhmvxxP6KDZozYnJ1ed5Dd6NE1VnD6qPa8Ou4IAP8g4o3VsY3l3wPr2ROOfc8B9G+wA=
+install:
+- pip install -q Django==$DJANGO_VERSION
+- pip install -q -r requirements.txt
+script:
+- python manage.py makemigrations
+- python manage.py migrate
+- python -m pytest -n 3 --cov-config .coveragerc --cov=. -v
+notifications:
+  email:
+  - keystQuant@gmail.com
+  - ppark9553@gmail.com
+  on_success: always
+  on_failure: always
