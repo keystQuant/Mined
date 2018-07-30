@@ -1,0 +1,30 @@
+version: "3"
+
+services:
+  nginx:
+    build: ./config/nginx
+    container_name: celery-nginx
+    depends_on:
+      - web
+    links:
+      - web:web
+    ports:
+      - 3000:3000
+    restart: unless-stopped
+
+  web:
+    build: .
+    container_name: celery-server
+    restart: unless-stopped
+
+  worker:
+      build:
+        context: .
+        dockerfile: Celerydocker
+      container_name: celery-worker
+      restart: unless-stopped
+
+  rabbit:
+    container_name: celery-rabbit
+    image: rabbitmq
+    restart: unless-stopped
