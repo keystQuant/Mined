@@ -3,3 +3,4 @@ __pycache__
 migrations
 crypt_key.py
 db.sqlite3
+.DS_Store
