@@ -1,0 +1,3 @@
+{
+  "tests/test_test_api.py::ExampleTestCase::test_TestAPIView_works_as_expected": true
+}

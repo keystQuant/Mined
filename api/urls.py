@@ -1,5 +1,7 @@
 from django.conf.urls import url
 
-urlpatterns = [
+from api.views import TaskAPIView
 
+urlpatterns = [
+    url(r'^$', TaskAPIView.as_view(), name='task'),
 ]

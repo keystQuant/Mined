@@ -3,7 +3,7 @@ version: "3"
 services:
   nginx:
     build: ./config/nginx
-    container_name: celery-nginx
+    container_name: mined-nginx
     depends_on:
       - web
     links:
@@ -14,17 +14,5 @@ services:
 
   web:
     build: .
-    container_name: celery-server
-    restart: unless-stopped
-
-  worker:
-      build:
-        context: .
-        dockerfile: Celerydocker
-      container_name: celery-worker
-      restart: unless-stopped
-
-  rabbit:
-    container_name: celery-rabbit
-    image: rabbitmq
+    container_name: mined-server
     restart: unless-stopped

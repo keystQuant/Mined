@@ -10,6 +10,7 @@ with love...
 '''
 import pytest
 
+##### Travis CI에서 새로운 환경의 테스트가 제대로 인식되고 테스트되는지 테스트 #####
 
 ## Test 시작 ##
 @pytest.fixture
