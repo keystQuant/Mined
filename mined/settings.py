@@ -23,7 +23,7 @@ cipher_suite = Fernet(KEY)
 ciphered_ip = b'gAAAAABbVoauSecxvUiw8vJxatyndiW-uWMGRl722bOkbMZK8gVoEwy0c2xCrwJBt_6fMTp8DtSh5Kj3gQcBcf16Di-UuUgr5w=='
 IP_ADDRESS = cipher_suite.decrypt(ciphered_ip).decode()
 
-ALLOWED_HOSTS = ['127.0.0.1', '127.0.1.1', IP_ADDRESS]
+ALLOWED_HOSTS = ['127.0.0.1', '127.0.1.1', IP_ADDRESS, '198.13.60.78']
 
 INSTALLED_APPS = [
     'django.contrib.admin',

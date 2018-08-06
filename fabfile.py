@@ -28,6 +28,7 @@ from mined.crypt_key import KEY
 cipher_suite = Fernet(KEY)
 ciphered_ip = b'gAAAAABbVoauSecxvUiw8vJxatyndiW-uWMGRl722bOkbMZK8gVoEwy0c2xCrwJBt_6fMTp8DtSh5Kj3gQcBcf16Di-UuUgr5w=='
 IP_ADDRESS = cipher_suite.decrypt(ciphered_ip).decode()
+IP_ADDRESS = '198.13.60.78'
 
 local_ip = '127.0.0.1'
 

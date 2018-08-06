@@ -27,6 +27,10 @@ DATA_MAPPER = {
     'ohlcv': '_OHLCV'
 }
 
+##### 레디스에서 Pandas DF 데이터 가져오는 방법:
+##### r = redis.Redis(host=IP, port=6379, password=PW)
+##### response = pd.read_msgpack(r.get(key)) <-- DataFrame이면 이렇게 가져오는 것이 가능
+
 class Data:
 
     def __init__(self):
