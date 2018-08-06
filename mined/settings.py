@@ -120,6 +120,7 @@ USE_L10N = True
 USE_TZ = False
 
 STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'static/')
 
 # https://github.com/ottoyiu/django-cors-headers
 CORS_ORIGIN_ALLOW_ALL = True # 외부에서 API 요청 가능하도록 새팅

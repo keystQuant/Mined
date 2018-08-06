@@ -17,6 +17,8 @@ class TestAPIView(APIView):
 
 #*** UPDATE: 20180806 ***#
 class TaskAPIView(APIView):
+    # 레퍼런스: http://www.django-rest-framework.org/api-guide/status-codes/ (status code)
+    
     ## /mined/api/<version>/?algorithm=<algorithm>&task=<taskname> ##
     # version: v1
     # algorithm: MARKET, SCANNER, PORTFOLIO, RMS

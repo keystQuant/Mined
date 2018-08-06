@@ -101,4 +101,4 @@ def clean_known_hosts():
 def send_crypt_key():
     # 크립트키 서버로 보내기
     env.user = 'root'
-    put('./mined/crypt_key.py', '~/MINED./mined/crypt_key.py')
+    put('./mined/crypt_key.py', '~/Mined/mined/crypt_key.py')

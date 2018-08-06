@@ -101,6 +101,8 @@ class PortfolioAlgorithm:
         return df
 
     def _calc_port_returns(self, period='M'):
+        # 현재 한 달 수익률만 계산한다
+        # 추가할 사항: 3개월, 6개월, 1년 수익률 (각 기간별 종목 데이터가 없어서 계산이 안 된다면 0%)
         self.ohlcv_df.index = pd.to_datetime(self.ohlcv_df.index)
         R = self.ohlcv_df.resample(period).last().pct_change()
         R.dropna(how='all', inplace=True)
