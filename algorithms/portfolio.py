@@ -15,7 +15,7 @@ import pandas as pd
 from algorithms.data import Data
 
 
-class InitialPortfolio(object):
+class PortfolioProcessor(object):
     '''
 
     **설명: 포트폴리오에 사용할 자보금과 포트폴리오에 추가하고 싶은 주식 종목들 인풋으로 받아,
@@ -68,7 +68,7 @@ class InitialPortfolio(object):
 
         for stock in port['stocks']:
             code = stock.code.code
-            ohlcv = OHLCV.objects.filter(code=code).order_by('-date')
+            ohlcv = OHLCV.objects.filter(code=code).order_by('-date') # 제일 최근 종가 가져오기
             if ohlcv.exists():
                 ohlcv_inst = ohlcv.first() # get the most recent ohlcv instance
                 ticker_inst = Ticker.objects.filter(code=ohlcv_inst.code).order_by('-date').first()

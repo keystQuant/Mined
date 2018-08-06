@@ -164,96 +164,96 @@ class MarketSignalProcessor:
             data[size + '_state'] = state
         return data
 
-    # #*** Mined API #3 ***#
-    # def _get_style_info(self):
-    #     style_list = Index.objects.filter(category='ST').order_by('-date')[:4]
-    #     score_list = MarketScore.objects.filter(name__in=['G', 'V']).order_by('-date')[:4]
-    #
-    #     for style_inst in style_list:
-    #         index_name = style_inst.name
-    #         if index_name == 'G':
-    #             g_index = style_inst.index
-    #         elif index_name == 'V':
-    #             v_index = style_inst.index
-    #
-    #     g_scores, v_scores = [], []
-    #     for score_inst in score_list:
-    #         index_name = score_inst.name
-    #         if index_name == 'G':
-    #             g_scores.append(score_inst.total_score)
-    #         elif index_name == 'V':
-    #             v_scores.append(score_inst.total_score)
-    #
-    #     data = {
-    #         'g_index': self.format_decimal(g_index),
-    #         'g_score': g_scores[0],
-    #         'g_change': g_scores[0] - g_scores[1],
-    #         'v_index': self.format_decimal(v_index),
-    #         'v_score': v_scores[0],
-    #         'v_change': v_scores[0] - v_scores[1]
-    #     }
-    #     for size in ['g', 'v']:
-    #         if data[size + '_change'] > 0:
-    #             state = 'line_up'
-    #         elif data[size + '_change'] == 0:
-    #             state = 'line_middle'
-    #         else:
-    #             state = 'line_down'
-    #         data[size + '_state'] = state
-    #     return data
-    #
-    # #*** Mined API #4 ***#
-    # def _get_industry_info(self):
-    #     industry_qs = Index.objects.filter(category='I')
-    #     last_date = industry_qs.order_by('-date').first().date
-    #     ranked_index = [data.name for data in industry_qs.filter(date=last_date).order_by('-index')[:3]]
-    #     if '' in ranked_index:
-    #         ranked_index = [data.name for data in industry_qs.filter(date=last_date).order_by('-index')[:4]]
-    #         ranked_index.remove('')
-    #
-    #     industry_list = industry_qs.filter(name__in=ranked_index).order_by('-date')[:3]
-    #     score_list = MarketScore.objects.filter(name__in=ranked_index).order_by('-date')[:6]
-    #
-    #     for industry_inst in industry_list:
-    #         index_name = industry_inst.name
-    #         if index_name == ranked_index[0]:
-    #             ind_1_index = industry_inst.name
-    #         elif index_name == ranked_index[1]:
-    #             ind_2_index = industry_inst.name
-    #         elif index_name == ranked_index[2]:
-    #             ind_3_index = industry_inst.name
-    #
-    #     ind_1_scores, ind_2_scores, ind_3_scores = [], [], []
-    #     for score_inst in score_list:
-    #         index_name = score_inst.name
-    #         if index_name == ranked_index[0]:
-    #             ind_1_scores.append(score_inst.total_score)
-    #         elif index_name == ranked_index[1]:
-    #             ind_2_scores.append(score_inst.total_score)
-    #         elif index_name == ranked_index[2]:
-    #             ind_3_scores.append(score_inst.total_score)
-    #
-    #     data = {
-    #         'ind_1_index': ind_1_index,
-    #         'ind_1_score': ind_1_scores[0],
-    #         'ind_1_change': ind_1_scores[0] - ind_1_scores[1],
-    #         'ind_2_index': ind_2_index,
-    #         'ind_2_score': ind_2_scores[0],
-    #         'ind_2_change': ind_2_scores[0] - ind_2_scores[1],
-    #         'ind_3_index': ind_3_index,
-    #         'ind_3_score': ind_3_scores[0],
-    #         'ind_3_change': ind_3_scores[0] - ind_3_scores[1]
-    #     }
-    #     for size in ['ind_1', 'ind_2', 'ind_3']:
-    #         if data[size + '_change'] > 0:
-    #             state = 'line_up'
-    #         elif data[size + '_change'] == 0:
-    #             state = 'line_middle'
-    #         else:
-    #             state = 'line_down'
-    #         data[size + '_state'] = state
-    #     return data
-    #
+    #*** Mined API #3 ***#
+    def _get_style_info(self):
+        style_list = Index.objects.filter(category='ST').order_by('-date')[:4]
+        score_list = MarketScore.objects.filter(name__in=['G', 'V']).order_by('-date')[:4]
+
+        for style_inst in style_list:
+            index_name = style_inst.name
+            if index_name == 'G':
+                g_index = style_inst.index
+            elif index_name == 'V':
+                v_index = style_inst.index
+
+        g_scores, v_scores = [], []
+        for score_inst in score_list:
+            index_name = score_inst.name
+            if index_name == 'G':
+                g_scores.append(score_inst.total_score)
+            elif index_name == 'V':
+                v_scores.append(score_inst.total_score)
+
+        data = {
+            'g_index': self.format_decimal(g_index),
+            'g_score': g_scores[0],
+            'g_change': g_scores[0] - g_scores[1],
+            'v_index': self.format_decimal(v_index),
+            'v_score': v_scores[0],
+            'v_change': v_scores[0] - v_scores[1]
+        }
+        for size in ['g', 'v']:
+            if data[size + '_change'] > 0:
+                state = 'line_up'
+            elif data[size + '_change'] == 0:
+                state = 'line_middle'
+            else:
+                state = 'line_down'
+            data[size + '_state'] = state
+        return data
+
+    #*** Mined API #4 ***#
+    def _get_industry_info(self):
+        industry_qs = Index.objects.filter(category='I')
+        last_date = industry_qs.order_by('-date').first().date
+        ranked_index = [data.name for data in industry_qs.filter(date=last_date).order_by('-index')[:3]]
+        if '' in ranked_index:
+            ranked_index = [data.name for data in industry_qs.filter(date=last_date).order_by('-index')[:4]]
+            ranked_index.remove('')
+
+        industry_list = industry_qs.filter(name__in=ranked_index).order_by('-date')[:3]
+        score_list = MarketScore.objects.filter(name__in=ranked_index).order_by('-date')[:6]
+
+        for industry_inst in industry_list:
+            index_name = industry_inst.name
+            if index_name == ranked_index[0]:
+                ind_1_index = industry_inst.name
+            elif index_name == ranked_index[1]:
+                ind_2_index = industry_inst.name
+            elif index_name == ranked_index[2]:
+                ind_3_index = industry_inst.name
+
+        ind_1_scores, ind_2_scores, ind_3_scores = [], [], []
+        for score_inst in score_list:
+            index_name = score_inst.name
+            if index_name == ranked_index[0]:
+                ind_1_scores.append(score_inst.total_score)
+            elif index_name == ranked_index[1]:
+                ind_2_scores.append(score_inst.total_score)
+            elif index_name == ranked_index[2]:
+                ind_3_scores.append(score_inst.total_score)
+
+        data = {
+            'ind_1_index': ind_1_index,
+            'ind_1_score': ind_1_scores[0],
+            'ind_1_change': ind_1_scores[0] - ind_1_scores[1],
+            'ind_2_index': ind_2_index,
+            'ind_2_score': ind_2_scores[0],
+            'ind_2_change': ind_2_scores[0] - ind_2_scores[1],
+            'ind_3_index': ind_3_index,
+            'ind_3_score': ind_3_scores[0],
+            'ind_3_change': ind_3_scores[0] - ind_3_scores[1]
+        }
+        for size in ['ind_1', 'ind_2', 'ind_3']:
+            if data[size + '_change'] > 0:
+                state = 'line_up'
+            elif data[size + '_change'] == 0:
+                state = 'line_middle'
+            else:
+                state = 'line_down'
+            data[size + '_state'] = state
+        return data
+
     # def save_data(self):
     #     date_exists = MSHome.objects.filter(date=self.today_date).exists()
     #     if not date_exists:
@@ -305,49 +305,57 @@ class MarketSignalProcessor:
     #     else:
     #         print('Already exists, not saving')
     #
-    # #*** Mined API #5 ***#
-    # def make_rank_data(self):
-    #     date = datetime.now().strftime('%Y%m%d')
-    #     date_cut = Info.objects.order_by('-date').first().date
-    #     ind_list = [ind[0] for ind in Info.objects.filter(date=date_cut).distinct('industry').values_list('industry')]
-    #     loop_list = ['KOSPI', 'KOSDAQ', 'L', 'M', 'S', 'G', 'V'] + ind_list
-    #
-    #     ### temporary hotfix ###
-    #     specs_date_cut = Specs.objects.order_by('-date').first().date
-    #
-    #     for filter_by in loop_list:
-    #         print(filter_by)
-    #         if (filter_by == 'KOSPI') or (filter_by == 'KOSDAQ'):
-    #             mkt_list = [data[0] for data in Ticker.objects.filter(market_type=filter_by).distinct('code').values_list('code')]
-    #             queryset = Specs.objects.filter(date=specs_date_cut).filter(code__in=mkt_list).order_by('total_score').reverse()[:100]
-    #         elif (filter_by == 'L') or (filter_by == 'M') or (filter_by == 'S'):
-    #             s_list = [data[0] for data in Info.objects.filter(date=date_cut).filter(size_type=filter_by).values_list('code')]
-    #             queryset = Specs.objects.filter(date=specs_date_cut).filter(code__in=s_list).order_by('total_score').reverse()[:100]
-    #         elif (filter_by == 'G') or (filter_by == 'V'):
-    #             st_list = [data[0] for data in Info.objects.filter(date=date_cut).filter(style_type=filter_by).values_list('code')]
-    #             queryset = Specs.objects.filter(date=specs_date_cut).filter(code__in=st_list).order_by('total_score').reverse()[:100]
-    #         else:
-    #             i_list = [data[0] for data in Info.objects.filter(date=date_cut).filter(industry=filter_by).values_list('code')]
-    #             queryset = Specs.objects.filter(date=specs_date_cut).filter(code__in=i_list).order_by('total_score').reverse()[:100]
-    #         data_num = 1
-    #         data_list = []
-    #         for data in queryset:
-    #             code = data.code
-    #             name = Ticker.objects.filter(code=code).first().name
-    #             momentum_score = data.momentum_score
-    #             volatility_score = data.volatility_score
-    #             volume_score = data.volume_score
-    #             total_score = data.total_score
-    #             rank_inst = RankData(filter_by=filter_by,
-    #                                  date=date,
-    #                                  num=data_num,
-    #                                  code=code,
-    #                                  name=name,
-    #                                  momentum_score=momentum_score,
-    #                                  volatility_score=volatility_score,
-    #                                  volume_score=volume_score,
-    #                                  total_score=total_score)
-    #             data_list.append(rank_inst)
-    #             data_num += 1
-    #         RankData.objects.bulk_create(data_list)
-    #         print('Successfully saved {} data'.format(filter_by))
+    #*** Mined API #5 ***#
+    def make_rank_data(self):
+        date = datetime.now().strftime('%Y%m%d')
+        date_cut = Info.objects.order_by('-date').first().date
+        ind_list = [ind[0] for ind in Info.objects.filter(date=date_cut).distinct('industry').values_list('industry')]
+        loop_list = ['KOSPI', 'KOSDAQ', 'L', 'M', 'S', 'G', 'V'] + ind_list
+
+        ### temporary hotfix ###
+        specs_date_cut = Specs.objects.order_by('-date').first().date
+
+        for filter_by in loop_list:
+            print(filter_by)
+            if (filter_by == 'KOSPI') or (filter_by == 'KOSDAQ'):
+                mkt_list = [data[0] for data in Ticker.objects.filter(market_type=filter_by).distinct('code').values_list('code')]
+                queryset = Specs.objects.filter(date=specs_date_cut).filter(code__in=mkt_list).order_by('total_score').reverse()[:100]
+            elif (filter_by == 'L') or (filter_by == 'M') or (filter_by == 'S'):
+                s_list = [data[0] for data in Info.objects.filter(date=date_cut).filter(size_type=filter_by).values_list('code')]
+                queryset = Specs.objects.filter(date=specs_date_cut).filter(code__in=s_list).order_by('total_score').reverse()[:100]
+            elif (filter_by == 'G') or (filter_by == 'V'):
+                st_list = [data[0] for data in Info.objects.filter(date=date_cut).filter(style_type=filter_by).values_list('code')]
+                queryset = Specs.objects.filter(date=specs_date_cut).filter(code__in=st_list).order_by('total_score').reverse()[:100]
+            else:
+                i_list = [data[0] for data in Info.objects.filter(date=date_cut).filter(industry=filter_by).values_list('code')]
+                queryset = Specs.objects.filter(date=specs_date_cut).filter(code__in=i_list).order_by('total_score').reverse()[:100]
+            data_num = 1
+            data_list = []
+            for data in queryset:
+                code = data.code
+                name = Ticker.objects.filter(code=code).first().name
+                momentum_score = data.momentum_score
+                volatility_score = data.volatility_score
+                volume_score = data.volume_score
+                total_score = data.total_score
+                rank_inst = RankData(filter_by=filter_by,
+                                     date=date,
+                                     num=data_num,
+                                     code=code,
+                                     name=name,
+                                     momentum_score=momentum_score,
+                                     volatility_score=volatility_score,
+                                     volume_score=volume_score,
+                                     total_score=total_score)
+                data_list.append(rank_inst)
+                data_num += 1
+            RankData.objects.bulk_create(data_list)
+            print('Successfully saved {} data'.format(filter_by))
+
+    #*** Mined API #6 ***#
+    def emit_buysell_signal(self):
+        pass
+
+    #*** Mined API #7 ***#
+    def rate_index(self):
+        pass

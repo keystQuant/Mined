@@ -13,7 +13,8 @@ RUN pip3 install --upgrade pip && \
 WORKDIR /app
 
 RUN python manage.py makemigrations && \
-    python manage.py migrate
+    python manage.py migrate && \
+    python manage.py collectstatic --noinput
 
 EXPOSE 8000
 
