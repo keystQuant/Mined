@@ -12,12 +12,12 @@ import requests
 import redis
 import pandas as pd
 
+from mined.settings import CACHE_IP as IP
+
 from cryptography.fernet import Fernet
 from mined.crypt_key import KEY
 
 cipher_suite = Fernet(KEY)
-cache_ip = b'gAAAAABbY9rCK6aXKuhZKupM3IpY5nhXakD2ID8V5RhNwm2ZqUR225eTc5HFQXJgmlr_fZG9GnMjJ6wFVAdlgWxZoJ2NQWb1jA=='
-IP = cipher_suite.decrypt(cache_ip).decode()
 
 cache_pw = b'gAAAAABbY9rwNjWChyC-LgHSh64oczJaJqf67T8lcceZ93Bda4v-1AG8xCU7zoLIyArDwfaTLpm4fQuBdJpyhASfZLABdfhKTsKH14WPj48HvjObgc9jltGLWFNWkHBMbmCWzq8J9G64jC-gkcrXz2hGOZ-rFewWbeuMMeYSJ4u_LIxFBfUREl4='
 PW = cipher_suite.decrypt(cache_pw).decode()
@@ -115,7 +115,7 @@ MARKET_CODES = {
 
 class Data:
 
-    def __init__(self, algorithm_type):
+    def __init__(self, algorithm_type=None):
         print('Connecting to cache server (Redis) on Gobble server')
         print('Cache at {}'.format(IP))
         self.redis_client = redis.StrictRedis(host=IP, port=6379, password=PW)
@@ -126,6 +126,20 @@ class Data:
             print('portfolio')
         elif algorithm_type == 'rms':
             print('rms')
+        else:
+            print('none')
+
+    #*** UPDATE: 20180808 ***#
+    #*** ISSUES: NONE ***#
+    def get_val(self, key):
+        ## mined에서 사용하게 될 모든 데이터는 TICKERS 데이터가 아니면 pandas df이다
+        ## TICKERS 데이터는 리스트 형식이다
+        if 'TICKERS' in key:
+            data = self.redis_client.lrange(key, 0, -1)
+            data = list(map(lambda x: x.decode('utf-8'), data))
+        else:
+            data = pd.read_msgpack(self.redis_client.get(key))
+        return data
 
     def set_tickers(self):
         tickers_key = DATA_MAPPER['tickers']

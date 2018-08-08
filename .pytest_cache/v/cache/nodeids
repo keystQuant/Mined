@@ -1,5 +1,5 @@
 [
-  "tests/test_test_api.py::ExampleTestCase::test_TestAPIView_works_as_expected",
   "tests/test_travis.py::test_travis_works",
-  "tests/unit/test_data.py::test_travis_works"
+  "tests/unit/test_data.py::test_cache_can_get_tickers",
+  "tests/unit/test_data.py::test_cache_can_get_dataframes"
 ]

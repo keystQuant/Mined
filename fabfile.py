@@ -17,18 +17,13 @@ test
 lazy_commit
 clean_known_hosts
 send_crypt_key
+send_crypt_key_to_test_server
 '''
 
 import os
 from fabric.api import *
 
-from cryptography.fernet import Fernet
-from mined.crypt_key import KEY
-
-cipher_suite = Fernet(KEY)
-ciphered_ip = b'gAAAAABbVoauSecxvUiw8vJxatyndiW-uWMGRl722bOkbMZK8gVoEwy0c2xCrwJBt_6fMTp8DtSh5Kj3gQcBcf16Di-UuUgr5w=='
-IP_ADDRESS = cipher_suite.decrypt(ciphered_ip).decode()
-IP_ADDRESS = '198.13.60.78'
+from mined.settings import IP_ADDRESS, CACHE_IP
 
 local_ip = '127.0.0.1'
 
@@ -100,6 +95,13 @@ def clean_known_hosts():
 @task
 @hosts(IP_ADDRESS)
 def send_crypt_key():
+    # 크립트키 서버로 보내기
+    env.user = 'root'
+    put('./mined/crypt_key.py', '~/Mined/mined/crypt_key.py')
+
+@task
+@hosts(CACHE_IP)
+def send_crypt_key_to_test_server():
     # 크립트키 서버로 보내기
     env.user = 'root'
     put('./mined/crypt_key.py', '~/Mined/mined/crypt_key.py')
