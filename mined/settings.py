@@ -3,7 +3,7 @@ import raven
 from cryptography.fernet import Fernet
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SECRET_KEY = 'qdu856_f(ae73s@f=2yc$#vdnanhqugiv%51dw*3_(k=)qt=be'
+SECRET_KEY = '$3mrpu&r)^f3gz4-1%b-kx7(w(e&31y5m!_i+u==!%ksj4$nv#'
 DEBUG = True
 
 ##### 새팅 상태 위에서 먼저 정의 #####
@@ -113,7 +113,7 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'ko-KR' # http://www.i18nguy.com/unicode/language-identifiers.html
 TIME_ZONE = 'Asia/Seoul'
 USE_I18N = True
 USE_L10N = True
@@ -125,12 +125,12 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'static/')
 # https://github.com/ottoyiu/django-cors-headers
 CORS_ORIGIN_ALLOW_ALL = True # 외부에서 API 요청 가능하도록 새팅
 
-# setup MINED server with Rabbitmq configuration
-amqp_url = 'amqp://{}:5672//'.format(IP_ADDRESS)
-
-CELERY_BROKER_URL = amqp_url
-CELERY_RESULT_BACKEND = 'django-db'
-CELERY_ACCEPT_CONTENT = ['application/json']
-CELERY_TASK_SERIALIZER = 'json'
-CELERY_RESULT_SERIALIZER = 'json'
-CELERY_TIMEZONE = TIME_ZONE
+# # setup MINED server with Rabbitmq configuration
+# amqp_url = 'amqp://{}:5672//'.format(IP_ADDRESS)
+#
+# CELERY_BROKER_URL = amqp_url
+# CELERY_RESULT_BACKEND = 'django-db'
+# CELERY_ACCEPT_CONTENT = ['application/json']
+# CELERY_TASK_SERIALIZER = 'json'
+# CELERY_RESULT_SERIALIZER = 'json'
+# CELERY_TIMEZONE = TIME_ZONE

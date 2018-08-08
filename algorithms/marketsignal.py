@@ -71,7 +71,7 @@ class MarketSignalProcessor:
         #####################################
 
         # DESCRIPTION: 코스피, 코스닥 인덱스, 전일대비 가격변화, 1D 수익률 리턴
-        # API ENDPOINT: /mined/api/<version>/?algorithm=MARKETSIGNAL&type=CALC_BM_INFO
+        # API ENDPOINT: /mined/api/<version>/?algorithm=MARKET&type=CALC_BM_INFO
         # DATA: 코스피 인덱스(kospi_index), 코스닥 인덱스(kosdaq_index)
 
         # ================================= #

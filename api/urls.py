@@ -1,7 +1,8 @@
-from django.conf.urls import url
+from django.urls import path
 
-from api.views import TaskAPIView
+from api.views import TaskAPIView, TestAPIView
 
 urlpatterns = [
-    url(r'^$', TaskAPIView.as_view(), name='task'),
+    path('test/', TestAPIView.as_view(), name='test'),
+    path('', TaskAPIView.as_view(), name='task'),
 ]
