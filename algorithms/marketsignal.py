@@ -86,23 +86,26 @@ class MarketSignalProcessor:
         # ================================= #
 
         data = self.data
-        # 데이터는 최근 날짜 순으로 데이터가 리스트 안에 있다
+        data.request('bm')
+        # 데이터는 판다스 데이터프레임 안에 있다
         kospi_index = data.kospi_index
         kosdaq_index = data.kosdaq_index
 
-        kospi_change = kospi_index[0] - kospi_index[1] # 전일대비 가격변화
-        kospi_rate = kospi_change/kospi_index[1] # 1 Day 수익률
-        kosdaq_change = kosdaq_index[0] - kosdaq_index[1]
-        kosdaq_rate = kosdaq_change/kosdaq_index[1]
-        # 리턴하는 값들은 딕셔너리에 넣어서 리턴
-        return {
-            'kospi_index': self.format_decimal(kospi_index[0]),
-            'kospi_change': self.format_decimal(kospi_change),
-            'kospi_rate': self.change_to_pct(kospi_rate),
-            'kosdaq_index': self.format_decimal(kosdaq_index[0]),
-            'kosdaq_change': self.format_decimal(kosdaq_change),
-            'kosdaq_rate': self.change_to_pct(kosdaq_rate)
-        }
+        print(kospi_index)
+
+        # kospi_change = kospi_index[0] - kospi_index[1] # 전일대비 가격변화
+        # kospi_rate = kospi_change/kospi_index[1] # 1 Day 수익률
+        # kosdaq_change = kosdaq_index[0] - kosdaq_index[1]
+        # kosdaq_rate = kosdaq_change/kosdaq_index[1]
+        # # 리턴하는 값들은 딕셔너리에 넣어서 리턴
+        # return {
+        #     'kospi_index': self.format_decimal(kospi_index[0]),
+        #     'kospi_change': self.format_decimal(kospi_change),
+        #     'kospi_rate': self.change_to_pct(kospi_rate),
+        #     'kosdaq_index': self.format_decimal(kosdaq_index[0]),
+        #     'kosdaq_change': self.format_decimal(kosdaq_change),
+        #     'kosdaq_rate': self.change_to_pct(kosdaq_rate)
+        # }
 
     #*** Mined API #2 ***#
     #*** UPDATE: 20180726 ***#

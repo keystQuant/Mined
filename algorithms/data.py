@@ -22,6 +22,7 @@ cipher_suite = Fernet(KEY)
 cache_pw = b'gAAAAABbY9rwNjWChyC-LgHSh64oczJaJqf67T8lcceZ93Bda4v-1AG8xCU7zoLIyArDwfaTLpm4fQuBdJpyhASfZLABdfhKTsKH14WPj48HvjObgc9jltGLWFNWkHBMbmCWzq8J9G64jC-gkcrXz2hGOZ-rFewWbeuMMeYSJ4u_LIxFBfUREl4='
 PW = cipher_suite.decrypt(cache_pw).decode()
 
+# 미래에 레디스 키 이름이 바뀔 수 있기 때문에 아래와 같이 키값들을 하나의 딕셔너리 안에 모아 관리한다
 DATA_MAPPER = {
     'index_tickers': 'INDEX_TICKERS',
     'kospi_tickers': 'KOSPI_TICKERS',
@@ -114,18 +115,46 @@ MARKET_CODES = {
 ##### response = pd.read_msgpack(r.get(key)) <-- DataFrame이면 이렇게 가져오는 것이 가능
 
 class Data:
+    """
+    Data 객체를 사용하고 싶다면, Data 인스턴스를 생성할 때 algorithm_type을 넣어줘야 한다.
+    algorithm_type은 marketsignal, portfolio, rms, scanner 이렇게 4가지가 있고,
+
+    * 마켓시그널 알고리즘 계산에 필요한 데이터는 benchmark(bm), size, style, industry 인덱스 데이터이다.
+    * 포트폴리오 알고리즘에 필요한 데이터는 선택된 종목의 최근 종가 정보이다.
+    * RMS 알고리즘에 필요한 데이터는 선택된 종목 리스트의 종가 데이터 그리고 코스피 지수의 인덱스 정보이다 (5년).
+    * Scanner 알고리즘에 필요한 데이터는
+
+    인스턴스를 생성할 때 algorithm_type을 넣어주면 request 메소드를 사용하여,
+    원하는 정보를 요청할 수 있게 된다.
+
+    예를 들어서,
+
+    data = Data('marketsignal')
+    data.request('bm')
+    
+    이라고 인스턴스를 생성하고 'bm' 정보를 요청하면, 코스피, 코스닥 데이터가 담긴 Pandas DataFrame이 속성으로 새팅된다.
+    """
 
     def __init__(self, algorithm_type=None):
         print('Connecting to cache server (Redis) on Gobble server')
         print('Cache at {}'.format(IP))
+        # 데이터가 있는 레디스 캐시로 연결
         self.redis_client = redis.StrictRedis(host=IP, port=6379, password=PW)
+        self.algorithm_type = algorithm_type
 
         if algorithm_type == 'marketsignal':
-            print('marketsignal')
+            self.set_index_lists() # 알고리즘 타입을 마켓시그널로 정의내리고 시작하면, set_index_lists를 불러준다
+
+            ### 마켓시그널 알고리즘에서는 MARKET_CODES에 있는 모든 종목의 데이터가 필요하다 ###
+            # 인덱스 데이터를 가져온다
+            self.tickers = self.get_val(DATA_MAPPER['index_tickers'])
+
         elif algorithm_type == 'portfolio':
             print('portfolio')
+
         elif algorithm_type == 'rms':
             print('rms')
+
         else:
             print('none')
 
@@ -138,16 +167,66 @@ class Data:
             data = self.redis_client.lrange(key, 0, -1)
             data = list(map(lambda x: x.decode('utf-8'), data))
         else:
-            data = pd.read_msgpack(self.redis_client.get(key))
+            data = pd.read_msgpack(self.redis_client.get(key)) # 레디스에서 df 형식의 데이터를 가지고 오는 방법
         return data
 
-    def set_tickers(self):
-        tickers_key = DATA_MAPPER['tickers']
-        response = self.redis_client.lrange(tickers_key, 0, -1)
-        response = list(map(lambda x: x.decode('utf-8'), response))
-        self.tickers = response
+    #*** UPDATE: 20180809 ***#
+    def set_index_lists(self):
+        index_list = MARKET_CODES.keys() # 인덱스 종류를 담은 리스트
 
-    def get_ohlcv(self, ticker):
-        if self.tickers == None:
-            self.set_tickers()
-        # if ticker in self.tickers:
+        # 모든 인덱스 종류를 담은 리스트
+        # 산업별 분류는 너무 많아서 나머지 리스트에서 없는 인덱스를 가져오는 방식으로 리스트 정의
+        self.bm = ['코스피', '코스닥']
+        self.size = ['코스피 대형주', '코스피 중형주', '코스피 소형주', '코스닥 대형주', '코스닥 중형주', '코스닥 소형주']
+        self.style = ['성장주', '가치주', '배당주', '퀄리티주', '사회책임경영주']
+        self.industry = [index for index in index_list if index not in self.bm and \
+                                                          index not in self.size and \
+                                                          index not in self.style]
+
+        print('BM: ' + ' '.join(str(i) for i in self.bm))
+        print('SIZE: ' + ' '.join(str(i) for i in self.size))
+        print('STYLE: ' + ' '.join(str(i) for i in self.style))
+        print('INDUSTRY: ' + ' '.join(str(i) for i in self.industry))
+
+    #*** UPDATE: 20180809 ***#
+    def make_index_data(self, index_type):
+        index_data_dict = {} # 딕셔너리 형식으로 저장한다
+        # Marketsignal 알고리즘에 필요한 데이터
+        # index_type가 뭔지에 따라 루프 돌려 불러올 데이터의 리스트가 다르다
+        if index_type == 'bm':
+            index_list = self.bm
+
+        elif index_type == 'size':
+            index_list = self.size
+
+        elif index_type == 'style':
+            index_list = self.style
+
+        elif index_type == 'industry':
+            index_list = self.industry
+
+        for index in index_list:
+            # 레디스 키값은 I.002_INDEX와 같은 형식이다
+            index_key = MARKET_CODES[index] + DATA_MAPPER['index'] # MARKET_CODES 딕셔너리에서 코드를 찾아온다
+            index_df = self.get_val(index_key)
+            index_data_dict[index] = index_df
+        return index_data_dict
+
+    #*** UPDATE: 20180809 ***#
+    def request(self, data_type):
+        # 데이터를 요청하면 Data 객체내에서 데이터를 가공한 다음 값을 사용할 수 있도록 요청한 속성들을 만들어 준다
+        algorithm_type = self.algorithm_type
+
+        if algorithm_type == 'marketsignal':
+            if data_type == 'bm':
+                # 'bm'으로 make_index_data를 한다
+                # 그리고 리턴된 딕셔너리에서 코스피와 코스닥을 각각 kospi_index와 kosdaq_index에 부여한다
+                bm_data = self.make_index_data(data_type)
+                self.kospi_index = bm_data['코스피']
+                self.kosdaq_index = bm_data['코스닥']
+            elif data_type == 'size':
+                pass
+            elif data_type == 'style':
+                pass
+            elif data_type == 'industry':
+                pass
