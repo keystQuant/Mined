@@ -46,29 +46,46 @@ class PortfolioProcessor(object):
     '''
 
     #*** UPDATE: 20180730 ***#
-    def __init__(self, portfolio, stocks, capital):
-        # 포트폴리오 정보를 담고 있는 딕셔너리를 받아서 자본을 분배하여준다
-        port = {
-            'portfolio': portfolio,
-            'stocks': stocks,
-            'stock_count': stocks.count(),
-            'capital': capital
-        }
-        port['capital_per_stock'] = port['capital']//port['stock_count']
-        self.port_params = port
-        self.ratio_dict = {'cash': 0}
-        self.ohlcv_inst_list = []
+    def __init__(self, portfolio_type, stocks, capital):
+        ## ** 인자 설명 ** ##
+        ### portfolio_type (str) --> 포트폴리오 타입은 S 혹은 CS이다. (S: Stock, CS: Cash + Stock)
+        ### stocks (list) --> ['000020', '000030'] --> 리스트 형식]
+        ### capital (int) --> 총 투자 자본금
 
-        # run initial methods
-        self.initial_distribution()
-        self.redistribute()
+        # Data 인스턴스 생성/부여
+        self.data = Data('portfolio', stocks)
+
+        # 포트폴리오의 메타데이터를 만든다
+        port = {
+            'portfolio': portfolio_type,
+            'stocks': stocks,
+            'stock_count': len(stocks),
+            'capital': capital,
+            'capital_per_stock': capital//len(stocks) # 각 주식에 기본적으로 얼마를 투자해야 하는지 계산
+        } # 입력받은 인자로 포트폴리오 기본 정보 설정하기
+
+        # 클래스 속성 설정
+        self.port_params = port # 위에서 만든 port 딕셔너리를 속성으로 만든다
+        self.ratio_dict = {'cash': 0} # 시작 현금 금액은 0원이다.
+        # 만약, port['portfolio'] == 'S' 이면 현금 금액은 계속 0이다.
+        # 만약, port['portfolio'] == 'CS' 이면 현금 금액은 알고리즘에 따라 변해야 한다.
+        # 앞으로, self.ratio_dict에 다른 종목들 비중도 계산하여 업데이트해줄 것이다
+
+        # Data 인스턴스를 생성하여 stocks에서 입력받은 주가 정보를 받아온다.
+        ohlcv_data_list = self.data.make_ohlcv_data() # OHLCV 정보를 받아온다
+        self.ohlcv_inst_list = ohlcv_data_list
+
+    def get_recent_stock_close_price(self, ticker):
+        # 종목의 코드를 인자로 받아서 그 종목의 최근 종가를 리턴하는 메소드
+        pass
 
     def initial_distribution(self):
+        # 초기에 자본을 분배할 때는 모든 종목에 동일한 비중의 자본금을 나누는 형식으로 진행한다
         port = self.port_params
 
         for stock in port['stocks']:
             code = stock.code.code
-            ohlcv = OHLCV.objects.filter(code=code).order_by('-date') # 제일 최근 종가 가져오기
+            ohlcv = self.get_recent_stock_close_price(code) # 제일 최근 종가 가져오기
             if ohlcv.exists():
                 ohlcv_inst = ohlcv.first() # get the most recent ohlcv instance
                 ticker_inst = Ticker.objects.filter(code=ohlcv_inst.code).order_by('-date').first()

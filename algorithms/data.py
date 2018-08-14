@@ -137,7 +137,10 @@ class Data:
     이런 방식으로 데이터를 불러오는 이유는 알고리즘 계산에 필요한 데이터만 그때그때 가져오기 위함이다.
     """
 
-    def __init__(self, algorithm_type=None):
+    def __init__(self, algorithm_type=None, stocks=None):
+        # 어떤 알고리즘에 사용되는 데이터 요청을 보낼건지 알려준다
+        # 어떤 주식 종목 데이터를 요청할건지 알려준다
+        # algorithm_type이나 stocks 정보를 안 넣어줘도 된다
         print('Connecting to cache server (Redis) on Gobble server')
         print('Cache at {}'.format(IP))
         # 데이터가 있는 레디스 캐시로 연결
@@ -152,10 +155,16 @@ class Data:
             self.tickers = self.get_val(DATA_MAPPER['index_tickers'])
 
         elif algorithm_type == 'portfolio':
-            print('portfolio')
+            if stocks != None:
+                self.port_stocks = stocks
+            else:
+                self.port_stocks = [] # stocks를 인자로 받지 않으면 빈 리스트를 부여한다
+            # 포트폴리오 알고리즘에 필요한 데이터는 stocks리스트 안에 있는 주식 데이터이다
 
         elif algorithm_type == 'rms':
-            print('rms')
+            # RMS 알고리즘에는 전체 종목 점수를 매겨 랭킹을 매기는 알고리즘이 있다
+            # 그 알고리즘을 돌리기 위해서는 코스피, 코스닥 종목 리스트가 필요하다
+            self.set_tickers_list()
 
         else:
             print('none')
@@ -190,6 +199,12 @@ class Data:
         print('STYLE: ' + ' '.join(str(i) for i in self.style))
         print('INDUSTRY: ' + ' '.join(str(i) for i in self.industry))
 
+    #*** UPDATE: 20180814 ***#
+    def set_tickers_list(self):
+        # RMS 알고리즘에 필요한 코스피, 코스닥 코드 정보를 리스트로 만든다
+        self.kospi_tickers = self.get_val(DATA_MAPPER['kospi_tickers'])
+        self.kosdaq_tickers = self.get_val(DATA_MAPPER['kosdaq_tickers'])
+
     #*** UPDATE: 20180809 ***#
     def make_index_data(self, index_type):
         index_data_dict = {} # 딕셔너리 형식으로 저장한다
@@ -213,6 +228,36 @@ class Data:
             index_df = self.get_val(index_key)
             index_data_dict[index] = index_df
         return index_data_dict
+
+    #*** UPDATE: 20180814 ***#
+    def make_ohlcv_data(self):
+        # 포트폴리오에 필요한 데이터는 포트폴리오에 포함되어 있는 종목이다
+        # RMS에 필요한 데이터는 코스피, 코스닥 모든 종목 데이터이다
+        if self.algorithm_type == 'portfolio':
+            stock_list = self.port_stocks
+
+        elif self.algorithm_type == 'rms':
+            stock_list = self.kospi_tickers + self.kosdaq_tickers
+
+            # RMS 데이터는 코스피, 코스닥 종목 갯수로 리스트를 나누어 리턴한다
+            # 그러기 위해서는 코스피와 코스닥 전체 종목 수를 알아야한다
+            kp_count = len(self.kospi_tickers)
+            kd_count = len(self.kosdaq_tickers) # 없어도됨!
+
+        # 데이터 요청을 보내어 리턴되는 DF들을 리스트 안에 넣는다
+        ohlcv_data_list = []
+        for stock in stock_list:
+            ohlcv_key = stock + DATA_MAPPER['ohlcv'] # 000020_OHLCV와 같은 형식
+            ohlcv_df = self.get_val(ohlcv_key)
+            ohlcv_data_list.append(ohlcv_df)
+
+        if self.algorithm_type == 'rms':
+            # RMS용 데이터면 리스트를 두개로 나누어서 리턴한다
+            # 첫 번째 리스트는 코스피 정보를 모은 리스트이고,
+            # 두 번째 리스트는 코스닥 정보를 모은 리스트이다.
+            ohlcv_data_list = [ohlcv_data_list[:kp_count], ohlcv_data_list[kp_count:]]
+
+        return ohlcv_data_list
 
     #*** UPDATE: 20180809 ***#
     def request(self, data_type):

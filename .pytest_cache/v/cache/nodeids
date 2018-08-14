@@ -1,5 +1,8 @@
 [
   "tests/test_travis.py::test_travis_works",
   "tests/unit/test_data.py::test_cache_can_get_tickers",
-  "tests/unit/test_data.py::test_cache_can_get_dataframes"
+  "tests/unit/test_data.py::test_cache_can_get_dataframes",
+  "tests/unit/test_data.py::test_data_inst_can_set_marketsignal_data",
+  "tests/unit/test_portfolio.py::test_processor_can_create_port_metadata",
+  "tests/unit/test_portfolio.py::test_processor_gets_ohlcv_data_from_data_inst"
 ]

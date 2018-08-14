@@ -15,6 +15,96 @@ from numpy import *
 import pandas as pd
 import scipy.optimize
 
+from algorithms.data import Data
+
+
+class RMS:
+    """
+    RMS: Risk Management System
+
+    ** 설명:
+
+    ** 태스크:
+    1.
+    """
+
+    #*** UPDATE: 20180815 ***#
+    def __init__(self, mode='score', ratio_dict=None):
+        # 인자 설명:
+
+        ### mode (str) --> RMS을 포트폴리오 분석용, 최적 포트폴리오 계산용, 점수 계산용으로 사용할 수 있다
+        ###                portfolio, recommendation, score: 세 가지 옵션을 줄 수 있다
+        ### ratio_dict (dict) --> algorithms.portfolio.PortfolioProcessor가 redistribute하고
+        ###                       최종적으로 생기는 ratio_dict와 같은 형식
+        self.ratio_dict = ratio_dict
+
+        # RMS 계산에는 종가 데이터만 있으면 된다!! #
+        # Data 인스턴스는 종가만 모아서 리턴할 수 있도록 한다
+
+        # 새팅 딕셔너리를 준비한다
+        # --> ratio_dict의 키를 사용해서 ticker_list를 채우고,
+        #     Data 인스턴스로 그 주식들의 종가 데이터를 불러올 것이다
+        self.settings = {
+            'ticker_list': list(),
+            'ohlcv_list': list()
+        }
+
+    #*** UPDATE: 20180815 ***#
+    def set_port_analysis_settings(self):
+        ### 포트폴리오 분석, 최적 포트폴리오 계산용 옵션이다
+        ### mode == 'portfolio' or mode == 'recommendation'
+
+        # ticker_list 리스트 채우기
+        self.settings['ticker_list'] = [ticker for ticker in self.ratio_dict.keys() if ticker != 'cash']
+        ticker_list = self.settings['ticker_list']
+
+        # Data 인스턴스 생성
+        self.data = Data('rms', ticker_list) # Data 인스턴스 생성자 stocks 인자를 넣어준다
+
+        # ohlcv_list 리스트 생성하기
+        print('create ohlcv_list with Data instance')
+
+    #*** UPDATE: 20180815 ***#
+    def set_periodic_close(self, ohlcv_df, period='M'):
+        ### 인자 설명:
+        ### 1. ohlcv_df (pd.DataFrame)
+        ### 2. period (str) --> W, M, Q, 6M, A
+        ###                     일주일, 한달, 세달, 여섯달, 일년 주기 종가
+
+        # 인자로 받은 데이터프레임 ohlcv_df의 인덱스를 데이트타임으로 바꿔준다
+        ohlcv_df.index = pd.to_datetime(ohlcv_df.index)
+        periodic_close = ohlcv_df.resample(period).last() # reference: http://benalexkeen.com/resampling-time-series-data-with-pandas/
+
+        ##########################################
+        ##### 6개월 resample은 따로 처리 필요!!! ######
+        ##########################################
+        # --> 우선은 1달을 주기로 계산하는 공식이 많기 때문에 추후에 추가해도됨
+
+        periodic_close.dropna(how='all', inplace=True)
+        return periodic_close
+
+
+    ##### EAA (Elastic Asset Allocation) 알고리즘에 필요한 계산 #####
+
+
+    #*** UPDATE: 20180815 ***#
+    def dual_momentum(self, data):
+        # data (pd.DataFrame) --> 한 달을 주기로 resample된 데이터프레임
+        # resample 처리가 안 된 상태라면, set_periodic_close() 메소드 사용
+        for i in range(1, 13):
+            momentum = (data - data.shift(i))/data.shift(i) # 단순 수익률: (P(t) - P(t-i))/P(t-i), P = 종가
+            if i == 1:
+                temp = momentum
+            else:
+                temp += momentum
+        mom = temp/12 # 위에서 구한 모든 모멘텀값을 더한 후 12로 나눔 (12개월 평균 모멘텀이 된다)
+        return mom.fillna(0) # nan은 0으로 처리
+
+    def volatility(self):
+
+
+
+
 
 class PortfolioAlgorithm:
     '''
@@ -27,7 +117,9 @@ class PortfolioAlgorithm:
     '''
 
     #*** UPDATE: 20180725 ***#
-    def __init__(self, ratio_dict, filter_date=False):
+    def __init__(self, taskname, ratio_dict, filter_date=False):
+        self.taskname = taskname
+
         self.ratio_dict = ratio_dict
         recent_update_date = BM.objects.filter(name='KOSPI').order_by('-date').first().date
         year = recent_update_date[:4]
@@ -236,8 +328,10 @@ class EAA(PortfolioAlgorithm):
 
 
 class StockScorer:
-    def __init__(self, data):
-        self.data = data
+    def __init__(self, taskname):
+        self.taskname = taskname
+
+        self.data = Data('rms')
 
     def score_data(self):
         self.vol = (self.data.ohlcv_df * self.data.vol_df).ix[-1]
