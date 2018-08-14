@@ -233,3 +233,34 @@ class EAA(PortfolioAlgorithm):
         bt = pd.concat([yc, BM_yc], axis=1)
         bt.columns = ['Portfolio', 'Benchmark']
         return r, v, sr, yield_r, bt, weights
+
+
+class StockScorer:
+    def __init__(self, data):
+        self.data = data
+
+    def score_data(self):
+        self.vol = (self.data.ohlcv_df * self.data.vol_df).ix[-1]
+        self.set_return_portfolio()
+        self.add_bm_data()
+        self.make_mom_volt_cor_vol()
+
+    def set_return_portfolio(self):
+        self.portfolio_data = self.data.ohlcv_df.pct_change()
+
+    def add_bm_data(self):
+        # 캐시에서 데이터를 들고온 후에 코스피 인덱스의 날짜와 종가를 전체 종가 데이터에 붙여준다
+        BM_qs = OHLCV.objects.filter(code='BM')
+        BM_data = list(BM_qs.exclude(date__lte=self.filter_date).values('date', 'close_price'))
+        BM = pd.DataFrame(BM_data)
+        BM.set_index('date', inplace=True)
+        BM.index = pd.to_datetime(BM.index)
+        BM.rename(columns={'close_price': 'Benchmark'}, inplace=True)
+        BM = BM.pct_change()
+        self.portfolio_data.index = pd.to_datetime(self.portfolio_data.index)
+        self.portfolio_data = pd.concat([self.portfolio_data, BM], axis=1)
+        self.portfolio_data.fillna(0, inplace=True)
+
+    def make_mom_volt_cor_vol(self, period='M'):
+        # period는 점수를 내는 주기로 1달 3달 6달 1년을 계산한다
+        eaa = EAA(period)

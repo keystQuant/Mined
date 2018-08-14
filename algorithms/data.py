@@ -131,8 +131,10 @@ class Data:
 
     data = Data('marketsignal')
     data.request('bm')
-    
+
     이라고 인스턴스를 생성하고 'bm' 정보를 요청하면, 코스피, 코스닥 데이터가 담긴 Pandas DataFrame이 속성으로 새팅된다.
+
+    이런 방식으로 데이터를 불러오는 이유는 알고리즘 계산에 필요한 데이터만 그때그때 가져오기 위함이다.
     """
 
     def __init__(self, algorithm_type=None):
@@ -225,8 +227,25 @@ class Data:
                 self.kospi_index = bm_data['코스피']
                 self.kosdaq_index = bm_data['코스닥']
             elif data_type == 'size':
-                pass
+                size_data = self.make_index_data(data_type)
+                self.kp_lg_cap_index = size_data['코스피 대형주']
+                self.kp_md_cap_index = size_data['코스피 중형주']
+                self.kp_sm_cap_index = size_data['코스피 소형주']
+                self.kd_lg_cap_index = size_data['코스닥 대형주']
+                self.kd_md_cap_index = size_data['코스닥 중형주']
+                self.kd_sm_cap_index = size_data['코스닥 소형주']
             elif data_type == 'style':
-                pass
+                style_data = self.get_index_data(data_type)
+                self.growth_index = style_data['성장주']
+                self.value_index = style_data['가치주']
+                self.yield_index = style_index['배당주']
+                self.quality_index = style_index['퀄리티주']
+                self.social_index = style_index['사회책임경영주']
             elif data_type == 'industry':
                 pass
+
+        elif algorithm_type == 'portfolio':
+            pass
+
+        elif algorithm_type == 'rms':
+            pass

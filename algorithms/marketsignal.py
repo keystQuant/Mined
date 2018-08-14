@@ -21,9 +21,10 @@ class MarketSignalProcessor:
     **설명: 마켓시그널 페이지에 들어가는 요소들을 모두 계산하여 리턴해주는 데이터 분석 엔진
 
     **태스크:
-    1. 코스피, 코스닥 인덱스, 전일대비 가격변화, 1D 수익률 리턴
-    2. 대형주, 중형주, 소형주 인덱스, 마켓점수, 전일대비 가격변화, 1D 수익률 리턴
-    3.
+    1. 시장별: 코스피, 코스닥 인덱스, 전일대비 가격변화, 1D 수익률 리턴
+    2. 사이즈별: 대형주, 중형주, 소형주 인덱스, 마켓점수, 전일대비 가격변화, 1D 수익률 리턴
+    3. 스타일별: 성장주, 가치주, 배당주, 퀄리티주, 사회책임경영주 인덱스, 마켓점수, 전일대비 가격변화, 1D 수익률 리턴
+    4. 산업별: 모든 산업별 인덱스, 마켓점수, 전일대비 가격변화, 1D 수익률 리턴
 
     '''
 
@@ -114,37 +115,47 @@ class MarketSignalProcessor:
         ##### Get Size Information #####
         #####################################
 
-        # DESCRIPTION: 대형주, 중형주, 소형주 인덱스, 마켓점수, 전일대비 가격변화, 1D 수익률 리턴
+        # DESCRIPTION: 코스피/코스닥 대형주, 중형주, 소형주 인덱스, 마켓점수, 전일대비 가격변화, 1D 수익률 리턴
         # + 추가설명: 여기서 마켓점수는 모멘턴, 변동성, 상관관계 점수를 합친 것을 말한다
-        # API ENDPOINT: /mined/api/<version>/marketsignal/?task=SIZE_INFO
+        # API ENDPOINT: /mined/api/<version>/?algorithm=MARKET&type=CALC_SIZE_INFO
         # DATA: 대형주 인덱스(large_cap_index), 중형주 인덱스(mid_cap_index), 소형주 인덱스(small_cap_index)
 
         # ================================= #
         # RETURN:
         # return type: dictionary
-        # -------- kospi_index: 코스피 인덱스
-        # -------- kospi_change: 코스피 전일대비 가격(인덱스)변화
-        # -------- kospi_rate: 코스피 1 Day 수익률(리턴)
-        # -------- kosdaq_index: 코스닥 인덱스
-        # -------- kosdaq_change: 코스닥 전일대비 가격(인덱스)변화
-        # -------- kosdaq_rate: 코스닥 1 Day 수익률(리턴))
-        # ================================= #
-        data = self.data
-        large_cap_index = data.large_cap_index # list
-        mid_cap_index = data.mid_cap_index # list
-        small_cap_index = data.small_cap_index # list
-        large_cap_scores = data.large_cap_scores # list
-        mid_cap_index = data.mid_cap_index # list
-        small_cap_index = data.small_cap_index # list
+        # -------- kp_lg_index: 코스피 대형주 인덱스
+        # -------- kp_lg_score: 코스피 대형주 마켓점수
+        # -------- kp_lg_change: 코스피 대형주 전일대비 가격(인덱스)변화
 
-        for score_inst in score_list:
-            index_name = score_inst.name
-            if index_name == 'L':
-                l_scores.append(score_inst.total_score)
-            elif index_name == 'M':
-                m_scores.append(score_inst.total_score)
-            elif index_name == 'S':
-                s_scores.append(score_inst.total_score)
+        # -------- kp_md_index: 코스피 중형주 인덱스
+        # -------- kp_md_score: 코스피 중형주 마켓점수
+        # -------- kp_md_change: 코스피 중형주 전일대비 가격(인덱스)변화
+
+        # -------- kp_sm_index: 코스피 소형주 인덱스
+        # -------- kp_sm_score: 코스피 소형주 마켓점수
+        # -------- kp_sm_change: 코스피 소형주 전일대비 가격(인덱스)변화
+
+        # -------- kd_lg_index: 코스닥 대형주 인덱스
+        # -------- kd_lg_score: 코스닥 대형주 마켓점수
+        # -------- kd_lg_change: 코스닥 대형주 전일대비 가격(인덱스)변화
+
+        # -------- kd_md_index: 코스닥 중형주 인덱스
+        # -------- kd_md_score: 코스닥 중형주 마켓점수
+        # -------- kd_md_change: 코스닥 중형주 전일대비 가격(인덱스)변화
+
+        # -------- kd_sm_index: 코스닥 소형주 인덱스
+        # -------- kd_sm_score: 코스닥 소형주 마켓점수
+        # -------- kd_sm_change: 코스닥 소형주 전일대비 가격(인덱스)변화
+        # ================================= #
+
+        data = self.data
+        data.request('size')
+        kp_lg_cap_index = data.kp_lg_cap_index
+        kp_md_cap_index = data.kp_md_cap_index
+        kp_sm_cap_index = data.kp_sm_cap_index
+        kd_lg_cap_index = data.kd_lg_cap_index
+        kd_md_cap_index = data.kd_md_cap_index
+        kd_sm_cap_index = data.kd_sm_cap_index
 
         data = {
             'l_index': self.format_decimal(l_index),
@@ -168,7 +179,41 @@ class MarketSignalProcessor:
         return data
 
     #*** Mined API #3 ***#
+    #*** UPDATE: 20180811 ***#
     def _get_style_info(self):
+        #####################################
+        ##### Get Style Information #####
+        #####################################
+
+        # DESCRIPTION: 성장주, 가치주, 배당주, 퀄리티주, 사회책임경영주 인덱스, 마켓점수, 전일대비 가격변화, 1D 수익률 리턴
+        # + 추가설명: 여기서 마켓점수는 모멘턴, 변동성, 상관관계 점수를 합친 것을 말한다
+        # API ENDPOINT: /mined/api/<version>/?algorithm=MARKET&type=CALC_STYLE_INFO
+        # DATA: 대형주 인덱스(large_cap_index), 중형주 인덱스(mid_cap_index), 소형주 인덱스(small_cap_index)
+
+        # ================================= #
+        # RETURN:
+        # return type: dictionary
+        # -------- kp_lg_index: 코스피 대형주 인덱스
+        # -------- kp_lg_score: 코스피 대형주 마켓점수
+        # -------- kp_lg_change: 코스피 대형주 전일대비 가격(인덱스)변화
+
+        # -------- kp_md_index: 코스피 중형주 인덱스
+        # -------- kp_md_score: 코스피 중형주 마켓점수
+        # -------- kp_md_change: 코스피 중형주 전일대비 가격(인덱스)변화
+
+        # -------- kp_sm_index: 코스피 소형주 인덱스
+        # -------- kp_sm_score: 코스피 소형주 마켓점수
+        # -------- kp_sm_change: 코스피 소형주 전일대비 가격(인덱스)변화
+
+        # -------- kd_lg_index: 코스닥 대형주 인덱스
+        # -------- kd_lg_score: 코스닥 대형주 마켓점수
+        # -------- kd_lg_change: 코스닥 대형주 전일대비 가격(인덱스)변화
+
+        # -------- kd_md_index: 코스닥 중형주 인덱스
+        # -------- kd_md_score: 코스닥 중형주 마켓점수
+        # -------- kd_md_change: 코스닥 중형주 전일대비 가격(인덱스)변화
+        # ================================= #
+
         style_list = Index.objects.filter(category='ST').order_by('-date')[:4]
         score_list = MarketScore.objects.filter(name__in=['G', 'V']).order_by('-date')[:4]
 
@@ -257,57 +302,6 @@ class MarketSignalProcessor:
             data[size + '_state'] = state
         return data
 
-    # def save_data(self):
-    #     date_exists = MSHome.objects.filter(date=self.today_date).exists()
-    #     if not date_exists:
-    #         bm_info = self._get_bm_info()
-    #         size_info = self._get_size_info()
-    #         style_info = self._get_style_info()
-    #         industry_info = self._get_industry_info()
-    #         mshome_inst = MSHome(date=self.today_date,
-    #                              kospi_index=bm_info['kospi_index'],
-    #                              kospi_change=bm_info['kospi_change'],
-    #                              kospi_rate=bm_info['kospi_rate'],
-    #                              kosdaq_index=bm_info['kosdaq_index'],
-    #                              kosdaq_change=bm_info['kosdaq_change'],
-    #                              kosdaq_rate=bm_info['kosdaq_rate'],
-    #                              l_index=size_info['l_index'],
-    #                              l_score=size_info['l_score'],
-    #                              l_change=abs(size_info['l_change']),
-    #                              l_state=size_info['l_state'],
-    #                              m_index=size_info['m_index'],
-    #                              m_score=size_info['m_score'],
-    #                              m_change=abs(size_info['m_change']),
-    #                              m_state=size_info['m_state'],
-    #                              s_index=size_info['s_index'],
-    #                              s_score=size_info['s_score'],
-    #                              s_change=abs(size_info['s_change']),
-    #                              s_state=size_info['s_state'],
-    #                              g_index=style_info['g_index'],
-    #                              g_score=style_info['g_score'],
-    #                              g_change=abs(style_info['g_change']),
-    #                              g_state=style_info['g_state'],
-    #                              v_index=style_info['v_index'],
-    #                              v_score=style_info['v_score'],
-    #                              v_change=abs(style_info['v_change']),
-    #                              v_state=style_info['v_state'],
-    #                              ind_1_index=industry_info['ind_1_index'],
-    #                              ind_1_score=industry_info['ind_1_score'],
-    #                              ind_1_change=abs(industry_info['ind_1_change']),
-    #                              ind_1_state=industry_info['ind_1_state'],
-    #                              ind_2_index=industry_info['ind_2_index'],
-    #                              ind_2_score=industry_info['ind_2_score'],
-    #                              ind_2_change=abs(industry_info['ind_2_change']),
-    #                              ind_2_state=industry_info['ind_2_state'],
-    #                              ind_3_index=industry_info['ind_3_index'],
-    #                              ind_3_score=industry_info['ind_3_score'],
-    #                              ind_3_change=abs(industry_info['ind_3_change']),
-    #                              ind_3_state=industry_info['ind_3_state'])
-    #         mshome_inst.save()
-    #         print('Save complete')
-    #     else:
-    #         print('Already exists, not saving')
-    #
     #*** Mined API #5 ***#
     def make_rank_data(self):
         date = datetime.now().strftime('%Y%m%d')

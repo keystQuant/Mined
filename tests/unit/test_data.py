@@ -32,3 +32,18 @@ def test_cache_can_get_dataframes(data_instance):
     returned_code = df['code'][0]
     # DF의 code값이 요청한 값과 일치한지 본다
     assert code == returned_code
+
+@pytest.fixture
+def marketsignal_inst():
+    ms_inst = Data('marketsignal')
+    return ms_inst
+
+def test_data_inst_can_set_marketsignal_data(marketsignal_inst):
+    d = marketsignal_inst
+    # 마켓시그널을 알고리즘으로 새팅하면, 자동으로 bm, size, style, industry, tickers
+    # 속성(리스트값)들을 생성한다
+    assert type(d.bm) == list
+    assert type(d.size) == list
+    assert type(d.style) == list
+    assert type(d.industry) == list
+    assert type(d.tickers) == list
