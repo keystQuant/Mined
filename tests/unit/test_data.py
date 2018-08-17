@@ -36,6 +36,7 @@ def test_cache_can_get_dataframes(data_instance):
 @pytest.fixture
 def marketsignal_inst():
     ms_inst = Data('marketsignal')
+    assert ms_inst.algorithm_type == 'marketsignal'
     return ms_inst
 
 def test_data_inst_can_set_marketsignal_data(marketsignal_inst):
@@ -47,3 +48,27 @@ def test_data_inst_can_set_marketsignal_data(marketsignal_inst):
     assert type(d.style) == list
     assert type(d.industry) == list
     assert type(d.tickers) == list
+
+def test_data_inst_can_request_bm_data(marketsignal_inst):
+    d = marketsignal_inst
+    d.request('bm')
+    assert hasattr(d, 'kospi_index')
+    assert hasattr(d, 'kosdaq_index')
+
+def test_data_inst_can_request_size_data(marketsignal_inst):
+    d = marketsignal_inst
+    d.request('size')
+    assert hasattr(d, 'kp_lg_cap_index')
+    assert hasattr(d, 'kd_lg_cap_index')
+
+def test_data_inst_can_request_style_data(marketsignal_inst):
+    d = marketsignal_inst
+    d.request('style')
+    assert hasattr(d, 'growth_index')
+    assert hasattr(d, 'value_index')
+
+def test_data_inst_can_request_industry_data(marketsignal_inst):
+    d = marketsignal_inst
+    d.request('industry')
+    assert type(d.industry_data) == dict
+    assert len(d.industry_data.keys()) == len(d.industry) # 산업 데이터 딕셔너리와 산업 코드의 리스트 갯수가 같은지 본다

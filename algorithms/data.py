@@ -280,14 +280,15 @@ class Data:
                 self.kd_md_cap_index = size_data['코스닥 중형주']
                 self.kd_sm_cap_index = size_data['코스닥 소형주']
             elif data_type == 'style':
-                style_data = self.get_index_data(data_type)
+                style_data = self.make_index_data(data_type)
                 self.growth_index = style_data['성장주']
                 self.value_index = style_data['가치주']
-                self.yield_index = style_index['배당주']
-                self.quality_index = style_index['퀄리티주']
-                self.social_index = style_index['사회책임경영주']
+                self.yield_index = style_data['배당주']
+                self.quality_index = style_data['퀄리티주']
+                self.social_index = style_data['사회책임경영주']
             elif data_type == 'industry':
-                pass
+                industry_data = self.make_index_data(data_type)
+                self.industry_data = industry_data
 
         elif algorithm_type == 'portfolio':
             pass

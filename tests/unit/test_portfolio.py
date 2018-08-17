@@ -22,6 +22,7 @@ def example_S_portfolio_data():
     p = PortfolioProcessor(portfolio_type, stocks, capital)
     return p
 
+### 객체 생성 테스트 ###
 def test_processor_can_create_port_metadata(example_S_portfolio_data):
     # 예시 포트폴리오를 생성한다
     p = example_S_portfolio_data

@@ -100,10 +100,112 @@ class RMS:
         mom = temp/12 # 위에서 구한 모든 모멘텀값을 더한 후 12로 나눔 (12개월 평균 모멘텀이 된다)
         return mom.fillna(0) # nan은 0으로 처리
 
-    def volatility(self):
+    #*** UPDATE: 20180815 ***#
+    def volatility(self, returns_data, window=12):
+        # 변동성 계산
+        # 보통 변동성 계산은 일년을 주기로 계산한다
+        # 그래서 returns_data 월별로 resample된거라면 window를 12로 잡는다
+        # (데이터가 일일 데이터면 보통 window를 200으로 잡는다)
+        # (데이터가 일주일로 resample되었다면, window는 48을 잡는다)
+        # (3개월/분기별로 resample 되었다면 window는 4로 잡는다)
+        return returns_df.rolling(window=window).std().fillna(0)
+
+    #*** UPDATE: 20180816 ***#
+    def correlation(self, returns_data):
+        corr = returns_df.copy() # data를 복사한다
+        corr['Eq_weight'] = list(pd.DataFrame(corr.values.T*(1.0/len(corr.columns))).sum())
+        return corr.corr().ix[-1][:-1]
+
+    #*** UPDATE: 20180816 ***#
+    def EAA(self, mom, vol, corr, portfolio_type):
+        # 1단계: 현금 투자 금액을 계산한다
+        if portfolio_type == 'S':
+            cash_amount = 0
+            stock_amount = 1
+        else:
+            # 투자하는 종목 중에서 모멘텀이 양수인 종목/자산군에만 투자한다
+            cash_amount = (len(mom) - len(mom[mom > 0])) / len(mom)
+            stock_amount = 1 - cash_amount
+        # 2단계: (1 - 상관관계) / 변동성 의 공식으로 주식에 투자해야하는 금액을 계산한다
+        eaa_amount = (1 - corr[mom > 0]) / vol[mom > 0]
+        # 3단계: 주식에 투자해야하는 금액을 리스트 형식으로 바꾼다
+        # --> 각 종목/자산군에 투자해야하는 금액이다
+        stock_amount = stock_amount * eaa_amount / eaa_amount.sum()
+        return cash_amount, stock_amount
 
 
+    ##### 알고리즘 백테스팅(backtesting)에 필요한 계산 #####
 
+    #*** UPDATE: 20180816 ***#
+    def calc_port_returns(self, ohlcv_df):
+        # OHLCV 데이터를 받아서 수익률 데이터로 변환해준다
+        return ohlcv_df.pct_change()
+
+    #*** UPDATE: 20180816 ***#
+    def retrieve_weights(self, ratio_dict):
+        stocks = list()
+        weights = list()
+        for code, ratio in ratio_dict.items():
+            if code != 'cash':
+                stocks.append(code)
+                weights.append(ratio['ratio'])
+        weights = pd.Series(weights, index=stocks)
+        return weights
+
+    #*** UPDATE: 20180816 ***#
+    def backtest_portfolio(self, weights, returns):
+        W_R = weights * returns
+        WR = W_R.sum(axis=1)
+        port_ret = WR.mean()
+        port_var = WR.std()
+        yield_curve = (WR + 1).cumprod()
+        return WR, port_ret, port_var, yield_curve
+
+    #*** UPDATE: 20180816 ***#
+    def benchmark_info(self):
+        from stockapi.models import BM
+        BM_qs = BM.objects.filter(name='KOSPI').distinct('date')
+        BM_data = list(BM_qs.exclude(date__lte=self.filter_date).values('date', 'index'))
+        BM = pd.DataFrame(BM_data)
+        BM.set_index('date', inplace=True)
+        BM.index = pd.to_datetime(BM.index)
+        BM.rename(columns={'index': 'Benchmark'}, inplace=True)
+        BM_R = BM.resample(period).last().pct_change()
+        BM_R.dropna(how='all', inplace=True)
+        W = pd.Series([1], index=['Benchmark'])
+        return self._backtest_port(W, BM_R)
+
+    #*** UPDATE: 20180816 ***#
+    def portfolio_info(self, weights, returns):
+        ### BM_wr: Benchmark Weight * Return
+        ### BM_r: Benchmark Return
+        ### BM_v: Benchmark Volatility
+        ### BM_yc: Benchmark Yield Curve
+        BM_wr, BM_r, BM_v, BM_yc = self.benchmark_info()
+        wr, r, v, yc = self.backtest_portfolio(weights, returns)
+
+        sharpe_ratio = self.sharpe_ratio(r, BM_r, v)
+        yield_r = yc.ix[len(yc)-1] - 1
+        bt = pd.concat([yc, BM_yc], axis=1)
+        bt.columns = ['Portfolio', 'Benchmark']
+        return r, v, sharpe_ratio, yield_r, bt
+
+    #*** UPDATE: 20180816 ***#
+    def sharpe_ratio(self, r, bm_r, v):
+        return (r - bm_r)/v
+
+    #*** UPDATE: 20180816 ***#
+    def change_backtest_result_format(self, backtest_result):
+        new_data = dict()
+        for column in bt.columns:
+            ret_data = list()
+            dates = bt.index.astype(np.int64)//1000000 # pandas timestamp returns in microseconds, divide by million
+            for i in range(len(bt)):
+                data = bt.ix[i]
+                date = dates[i]
+                ret_data.append([date, float(format(round(data[column], 4), '.4f'))])
+            new_data[column] = ret_data
+        return new_data
 
 
 class PortfolioAlgorithm:

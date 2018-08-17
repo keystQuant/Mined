@@ -1,3 +1,4 @@
 {
-  "tests/test_test_api.py::ExampleTestCase::test_TestAPIView_works_as_expected": true
+  "tests/test_test_api.py::ExampleTestCase::test_TestAPIView_works_as_expected": true,
+  "tests/unit/test_rms.py::test_cache_can_get_tickers": true
 }
