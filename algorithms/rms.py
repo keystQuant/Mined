@@ -16,6 +16,7 @@ import pandas as pd
 import scipy.optimize
 
 from algorithms.data import Data
+from algorithms.utils import timeit
 
 
 class RMS:
@@ -111,10 +112,10 @@ class RMS:
         return returns_df.rolling(window=window).std().fillna(0)
 
     #*** UPDATE: 20180816 ***#
-    def correlation(self, returns_data):
+    def correlation(self, returns_data, window=12):
         corr = returns_df.copy() # data를 복사한다
         corr['Eq_weight'] = list(pd.DataFrame(corr.values.T*(1.0/len(corr.columns))).sum())
-        return corr.corr().ix[-1][:-1]
+        return corr.rolling(window=window).corr().ix[-1][:-1]
 
     #*** UPDATE: 20180816 ***#
     def EAA(self, mom, vol, corr, portfolio_type):
@@ -194,210 +195,7 @@ class RMS:
     def sharpe_ratio(self, r, bm_r, v):
         return (r - bm_r)/v
 
-    #*** UPDATE: 20180816 ***#
-    def change_backtest_result_format(self, backtest_result):
-        new_data = dict()
-        for column in bt.columns:
-            ret_data = list()
-            dates = bt.index.astype(np.int64)//1000000 # pandas timestamp returns in microseconds, divide by million
-            for i in range(len(bt)):
-                data = bt.ix[i]
-                date = dates[i]
-                ret_data.append([date, float(format(round(data[column], 4), '.4f'))])
-            new_data[column] = ret_data
-        return new_data
-
-
-class PortfolioAlgorithm:
-    '''
-
-    **설명:
-
-    **태스크:
-    1.
-
-    '''
-
-    #*** UPDATE: 20180725 ***#
-    def __init__(self, taskname, ratio_dict, filter_date=False):
-        self.taskname = taskname
-
-        self.ratio_dict = ratio_dict
-        recent_update_date = BM.objects.filter(name='KOSPI').order_by('-date').first().date
-        year = recent_update_date[:4]
-        month = recent_update_date[4:6]
-        if not filter_date:
-            last_year = str(int(year) - 5)
-            last_month = int(month) - 1 or 12
-            last_month = str(last_month).zfill(2)
-            filter_date = last_year + last_month + '00'
-            self.filter_date = filter_date
-        else:
-            self.filter_date = filter_date
-        self.ohlcv_df = pd.DataFrame()
-        self.settings = {
-            'ticker_list': list(),
-            'ohlcv_list': list()
-        }
-        self._start_df_setup() # fill in ticker_list and ohlcv_list
-        self._retrieve_weights()
-        self._create_ohlcv_df()
-        self._calc_port_returns()
-
-    def _start_df_setup(self):
-        # setting ticker_list
-        self.settings['ticker_list'] = [ticker for ticker in self.ratio_dict.keys() if ticker != 'cash']
-        ticker_list = self.settings['ticker_list']
-        # setting ohlcv_list
-        init_qs = OHLCV.objects.filter(code__in=ticker_list)
-        filtered_qs = init_qs.exclude(date__lte=self.filter_date).order_by('date')
-        ohlcv_qs = filtered_qs.values_list('code', 'date', 'close_price')
-        ohlcv_list = []
-        for ticker in ticker_list:
-            ticker_ohlcv = [{'date': data[1], 'close_price': data[2]} for data in ohlcv_qs if data[0] == ticker]
-            ohlcv_list.append(ticker_ohlcv)
-        self.settings['ohlcv_list'] = ohlcv_list
-
-    def _retrieve_weights(self):
-        S = list()
-        W = list()
-        for key, val in self.ratio_dict.items():
-            if key != 'cash':
-                S.append(key)
-                W.append(val['ratio'])
-        W = pd.Series(W, index=S)
-        self.W = W
-
-    def _create_ohlcv_df(self):
-        ticker_count = len(self.settings['ticker_list'])
-        if ticker_count == 0:
-            pass
-        elif ticker_count == 1:
-            ticker = self.settings['ticker_list'][0]
-            ohlcv = self.settings['ohlcv_list'][0]
-            self.ohlcv_df = self._create_df(ticker, ohlcv)
-        else:
-            for i in range(ticker_count):
-                ticker = self.settings['ticker_list'][i]
-                ohlcv = self.settings['ohlcv_list'][i]
-                if i == 0:
-                    df = self._create_df(ticker, ohlcv)
-                else:
-                    temp_df = self._create_df(ticker, ohlcv)
-                    df = pd.concat([df, temp_df], axis=1)
-            df.index = pd.to_datetime(df.index)
-            self.ohlcv_df = df
-
-    def _create_df(self, ticker, ohlcv):
-        df = pd.DataFrame(ohlcv)
-        df.set_index('date', inplace=True)
-        df.rename(columns={'close_price': ticker}, inplace=True)
-        return df
-
-    def _calc_port_returns(self, period='M'):
-        # 현재 한 달 수익률만 계산한다
-        # 추가할 사항: 3개월, 6개월, 1년 수익률 (각 기간별 종목 데이터가 없어서 계산이 안 된다면 0%)
-        self.ohlcv_df.index = pd.to_datetime(self.ohlcv_df.index)
-        R = self.ohlcv_df.resample(period).last().pct_change()
-        R.dropna(how='all', inplace=True)
-        self.R = R
-
-    def portfolio_info(self):
-        BM_wr, BM_r, BM_v, BM_yc = self._bm_specs()
-        wr, r, v, yc = self._backtest_port(self.W, self.R)
-        sr = self._sharpe_ratio(r, BM_r, v)
-        yield_r = yc.ix[len(yc)-1] - 1
-        bt = pd.concat([yc, BM_yc], axis=1)
-        bt.columns = ['Portfolio', 'Benchmark']
-        return r, v, sr, yield_r, bt
-
-    def _bm_specs(self, period='M'):
-        from stockapi.models import BM
-        BM_qs = BM.objects.filter(name='KOSPI').distinct('date')
-        BM_data = list(BM_qs.exclude(date__lte=self.filter_date).values('date', 'index'))
-        BM = pd.DataFrame(BM_data)
-        BM.set_index('date', inplace=True)
-        BM.index = pd.to_datetime(BM.index)
-        BM.rename(columns={'index': 'Benchmark'}, inplace=True)
-        BM_R = BM.resample(period).last().pct_change()
-        BM_R.dropna(how='all', inplace=True)
-        W = pd.Series([1], index=['Benchmark'])
-        return self._backtest_port(W, BM_R)
-
-    def _backtest_port(self, W=None, BM=None):
-        if type(W) == type(None) and type(BM) == type(None):
-            W_R = self.W * self.R
-        else:
-            W_R = W*BM
-        WR = W_R.sum(axis=1)
-        port_ret = WR.mean()
-        port_var = WR.std()
-        yield_curve = (WR + 1).cumprod()
-        return WR, port_ret, port_var, yield_curve
-
-    def _sharpe_ratio(self, r, bm_r, v):
-        return (r - bm_r)/v
-
-    def change_bt_format(self, bt):
-        new_data = dict()
-        for column in bt.columns:
-            ret_data = list()
-            dates = bt.index.astype(np.int64)//1000000 # pandas timestamp returns in microseconds, divide by million
-            for i in range(len(bt)):
-                data = bt.ix[i]
-                date = dates[i]
-                ret_data.append([date, float(format(round(data[column], 4), '.4f'))])
-            new_data[column] = ret_data
-        return new_data
-
-
-class EAA(PortfolioAlgorithm):
-    # def add_bm_data(self):
-    #     BM_qs = OHLCV.objects.filter(code='BM')
-    #     BM_data = list(BM_qs.exclude(date__lte=self.filter_date).values('date', 'close_price'))
-    #     BM = pd.DataFrame(BM_data)
-    #     BM.set_index('date', inplace=True)
-    #     BM.index = pd.to_datetime(BM.index)
-    #     BM.rename(columns={'close_price': 'Benchmark'}, inplace=True)
-    #     BM = BM.resample('M').last().pct_change()
-    #     self.R.index = pd.to_datetime(self.R.index)
-    #     self.R = pd.concat([self.R, BM], axis=1)
-    #     self.R.fillna(0, inplace=True)
-
-    def _set_monthly_close(self, period='M'):
-        self.ohlcv_df.index = pd.to_datetime(self.ohlcv_df.index)
-        monthly_close = self.ohlcv_df.resample(period).last()
-        monthly_close.dropna(how='all', inplace=True)
-        self.monthly_close = monthly_close
-
-    def _dual_momentum(self):
-        monthly_close = self.monthly_close
-        for i in range(1, 13):
-            momentum = (monthly_close - monthly_close.shift(i))/monthly_close.shift(i)
-            if i == 1:
-                temp = momentum
-            else:
-                temp += momentum
-        mom = temp/12
-        # return mom.ix[-1]
-        return mom.fillna(0)
-
-    def _volatility(self):
-        # return self.R.rolling(window=12).std().ix[-1]
-        return self.R.rolling(window=12).std().fillna(0)
-
-    def _correlation(self):
-        corr = self.R.copy()
-        corr['Eq_weight'] = list(pd.DataFrame(corr.values.T*(1.0/len(corr.columns))).sum())
-        return corr.corr().ix[-1][:-1]
-
-    def EAA(self, mom, vol, corr):
-        cash_amount = (len(mom) - len(mom[mom > 0]))/len(mom)
-        stock_amount = 1 - cash_amount
-        eaa_amount = (1 - corr[mom > 0])/vol[mom > 0]
-        stock_amount = stock_amount*eaa_amount/eaa_amount.sum()
-        return cash_amount, stock_amount
-
+    #*** UPDATE: 20180822 ***#
     def backtest_EAA(self):
         self._set_monthly_close()
         mom = self._dual_momentum()
@@ -428,35 +226,110 @@ class EAA(PortfolioAlgorithm):
         bt.columns = ['Portfolio', 'Benchmark']
         return r, v, sr, yield_r, bt, weights
 
+    #*** UPDATE: 20180816 ***#
+    def change_backtest_result_format(self, backtest_result):
+        new_data = dict()
+        for column in bt.columns:
+            ret_data = list()
+            dates = bt.index.astype(np.int64)//1000000 # pandas timestamp returns in microseconds, divide by million
+            for i in range(len(bt)):
+                data = bt.ix[i]
+                date = dates[i]
+                ret_data.append([date, float(format(round(data[column], 4), '.4f'))])
+            new_data[column] = ret_data
+        return new_data
 
-class StockScorer:
-    def __init__(self, taskname):
-        self.taskname = taskname
+    ##### 종목 점수 매기는데 필요한 계산 #####
 
-        self.data = Data('rms')
-
+    #*** UPDATE: 20180822 ***#
+    @timeit
     def score_data(self):
-        self.vol = (self.data.ohlcv_df * self.data.vol_df).ix[-1]
-        self.set_return_portfolio()
-        self.add_bm_data()
-        self.make_mom_volt_cor_vol()
+        # 우선, 코스피, 코스닥 모든 종목의 데이터를 불러온다
+        data = Data('rms')
+        data.request('close') # self.data.kospi_cls_df, self.data.kosdaq_cls_df
 
-    def set_return_portfolio(self):
-        self.portfolio_data = self.data.ohlcv_df.pct_change()
+        # 데이터를 사용하기 쉽도록 함수 로컬 변수로 바꾼다
+        kospi_cls_df = data.kospi_cls_df
+        kospi_vol_df = data.kospi_vol_df
 
-    def add_bm_data(self):
-        # 캐시에서 데이터를 들고온 후에 코스피 인덱스의 날짜와 종가를 전체 종가 데이터에 붙여준다
-        BM_qs = OHLCV.objects.filter(code='BM')
-        BM_data = list(BM_qs.exclude(date__lte=self.filter_date).values('date', 'close_price'))
-        BM = pd.DataFrame(BM_data)
-        BM.set_index('date', inplace=True)
-        BM.index = pd.to_datetime(BM.index)
-        BM.rename(columns={'close_price': 'Benchmark'}, inplace=True)
-        BM = BM.pct_change()
-        self.portfolio_data.index = pd.to_datetime(self.portfolio_data.index)
-        self.portfolio_data = pd.concat([self.portfolio_data, BM], axis=1)
-        self.portfolio_data.fillna(0, inplace=True)
+        kosdaq_cls_df = data.kosdaq_cls_df
+        kosdaq_vol_df = data.kosdaq_vol_df
 
-    def make_mom_volt_cor_vol(self, period='M'):
-        # period는 점수를 내는 주기로 1달 3달 6달 1년을 계산한다
-        eaa = EAA(period)
+        # 1 단계: 코스피, 코스닥을 나눠서 거래대금 df를 만든다 --> 거래대금: 종가 * 거래량
+        # 거래대금 정보를 만드는 이유는 거래대금으로 어떤 종목이 가장 많이 거래되고 있는지 파악 가능하기 때문이다
+        ### kp_vol_prc에서 vol_prc란: volume in price values를 뜻함
+        kp_vol_prc = (kospi_cls_df * kospi_vol_df).iloc[-1:] # 마지막 줄만 가져온다 (최근 거래대금)
+        kd_vol_prc = (kosdaq_cls_df * kosdaq_vol_df).iloc[-1:]
+        # print('1 단계 완료')
+        # print(kp_vol_prc)
+        # print(kd_vol_prc)
+
+        # 2 단계: 종가 데이터를 수익률 데이터로 바꾼다 (수익률 = return = 변화율)
+        kospi_ret = kospi_cls_df.pct_change()
+        kosdaq_ret = kosdaq_cls_df.pct_change()
+        # print('2 단계 완료')
+
+        # 3 단계: 벤치마크 데이터를 하나씩 추가한다 (보편적으로 사용되는 벤치마크로 코스피 지수를 사용)
+        # 데이터를 쉽게 가져오기 위해서 marketsignal 데이터 객체를 사용한다
+        ms_data = Data('marketsignal')
+        ms_data.request('bm')
+        # 이제 ms_data.kospi_index와 ms_data.kosdaq_index를 사용하는 것이 가능하다
+        benchmark = ms_data.kospi_index
+        benchmark = benchmark[['date', 'cls_prc']]
+        benchmark.set_index('date', inplace=True)
+        benchmark.index = pd.to_datetime(benchmark.index)
+        benchmark.rename(columns={'cls_prc': 'Benchmark'}, inplace=True)
+        benchmark = benchmark.pct_change()
+        kospi = pd.concat([kospi_ret, benchmark], axis=1, sort=True)
+        kosdaq = pd.concat([kosdaq_ret, benchmark], axis=1, sort=True)
+        # fillna하여 빠진 데이터는 깔끔하게 0으로 채운다
+        kospi.fillna(0, inplace=True)
+        kosdaq.fillna(0, inplace=True)
+        # print('3 단계 완료')
+
+        # 4 단계: 거래대금, 모멘텀, 변동성, 상관관계 점수를 매긴다
+        # 우선, 모멘텀을 계산한다
+        kp_mom = self.dual_momentum(kospi)
+        kd_mom = self.dual_momentum(kosdaq)
+
+        # 다음, 변동성을 계산한다
+        kp_volt = self.volatility(kospi, 200) # resample이 안 된 상태이다
+        kd_volt = self.volatility(kosdaq, 200)
+
+        # 마지막으로 벤치마크 대비 종목별 상관관계를 계산한다
+        kp_cor = self.correlation(kospi, 200)
+        kd_cor = self.correlation(kosdaq, 200)
+
+        ### kp_vol_prc, kp_mom, kp_volt, kp_cor, etc. 의 랭킹을 매긴다
+        ### 랭킹은: 그 날짜별 모든 종목의 랭킹이다
+        ### vol_prc, mom은 숫자가 클수록 좋고,
+        ### volt, cor은 작을수록 좋다
+        ### 그리고 랭킹을 가지고 점수를 매긴다
+        ### --> 점수는: (종목 랭킹 / 종목수) * 100 이다
+        kp_vol_score = kp_vol_prc.rank(ascending=True)
+        kp_vol_score = (kp_vol_score / kp_vol_score.max()) * 100
+        kd_vol_score = kd_vol_prc.rank(ascending=True)
+        kd_vol_score = (kd_vol_score / kd_vol_score.max()) * 100
+
+        kp_mom_score = kp_mom.rank(ascending=True)
+        kp_mom_score = (kp_mom_score / kp_mom_score.max()) * 100
+        kd_mom_score = kd_mom.rank(ascending=True)
+        kd_mom_score = (kd_mom_score / kd_mom_score.max()) * 100
+
+        kp_volt_score = kp_volt.rank(ascending=False)
+        kp_volt_score = (kp_volt_score / kp_volt_score.max()) * 100
+        kd_volt_score = kd_volt.rank(ascending=True)
+        kd_volt_score = (kd_volt_score / kd_volt_score.max()) * 100
+
+        kp_cor_score = kp_cor.rank(ascending=False)
+        kp_cor_score = (kp_cor_score / kp_cor_score.max()) * 100
+        kd_cor_score = kd_cor.rank(ascending=False)
+        kd_cor_score = (kd_cor_score / kd_cor_score.max()) * 100
+
+        # 5 단계: 토탈 점수를 계산한다
+        ### 토탈 점수는 심플하게: (거래대금 점수 + 모멘텀 점수 + 변동성 점수 + 상관관계 점수) / 4 로 계산한다
+        kp_total_score = (kp_vol_score + kp_mom_score + kp_volt_score + kp_cor_score) // 4
+        kd_total_score = (kd_vol_score + kd_mom_score + kd_volt_score + kd_cor_score) // 4
+
+        # 계산한 토탈 점수 데이터 두 개를 리턴한다
+        return kp_total_score, kd_total_score

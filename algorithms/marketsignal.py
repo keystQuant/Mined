@@ -120,34 +120,6 @@ class MarketSignalProcessor:
         # API ENDPOINT: /mined/api/<version>/?algorithm=MARKET&type=CALC_SIZE_INFO
         # DATA: 대형주 인덱스(large_cap_index), 중형주 인덱스(mid_cap_index), 소형주 인덱스(small_cap_index)
 
-        # ================================= #
-        # RETURN:
-        # return type: dictionary
-        # -------- kp_lg_index: 코스피 대형주 인덱스
-        # -------- kp_lg_score: 코스피 대형주 마켓점수
-        # -------- kp_lg_change: 코스피 대형주 전일대비 가격(인덱스)변화
-
-        # -------- kp_md_index: 코스피 중형주 인덱스
-        # -------- kp_md_score: 코스피 중형주 마켓점수
-        # -------- kp_md_change: 코스피 중형주 전일대비 가격(인덱스)변화
-
-        # -------- kp_sm_index: 코스피 소형주 인덱스
-        # -------- kp_sm_score: 코스피 소형주 마켓점수
-        # -------- kp_sm_change: 코스피 소형주 전일대비 가격(인덱스)변화
-
-        # -------- kd_lg_index: 코스닥 대형주 인덱스
-        # -------- kd_lg_score: 코스닥 대형주 마켓점수
-        # -------- kd_lg_change: 코스닥 대형주 전일대비 가격(인덱스)변화
-
-        # -------- kd_md_index: 코스닥 중형주 인덱스
-        # -------- kd_md_score: 코스닥 중형주 마켓점수
-        # -------- kd_md_change: 코스닥 중형주 전일대비 가격(인덱스)변화
-
-        # -------- kd_sm_index: 코스닥 소형주 인덱스
-        # -------- kd_sm_score: 코스닥 소형주 마켓점수
-        # -------- kd_sm_change: 코스닥 소형주 전일대비 가격(인덱스)변화
-        # ================================= #
-
         data = self.data
         data.request('size')
         kp_lg_cap_index = data.kp_lg_cap_index
@@ -157,6 +129,14 @@ class MarketSignalProcessor:
         kd_md_cap_index = data.kd_md_cap_index
         kd_sm_cap_index = data.kd_sm_cap_index
 
+        # 데이터 안에 들어가는 점수 데이터는 algorithms.rms.RMS.score_data
+        # 에서 계산하는 방식을 사이즈 인덱스에 적용시켜 계산한 점수이다
+
+        ### 현재 RMS.score_data() 메소드는 코스피, 코스닥 종목들만 포함한 데이터를 기반으로
+        ### 데이터 분석하고 있지만, 제대로된 마켓시그널 알고리즘의 작동을 위해서는
+        ### algorithms.data.MARKET_CODES에 포함되어 있는 모든 인덱스들도 포함하여
+        ### 점수를 매겨야한다. (개발 수정 작업 필요)
+        ### --> 또, 점수를 매긴 후에 캐시로 저장을 해야 score 데이터를 빨리 리턴할 수 있다
         data = {
             'l_index': self.format_decimal(l_index),
             'l_score': l_scores[0],
@@ -168,6 +148,9 @@ class MarketSignalProcessor:
             's_score': s_scores[0],
             's_change': s_scores[0] - s_scores[1]
         }
+        # 대형주, 중형주, 소형주 모두 전날 대비 점수가 상승했으면,
+        # line_up이라고, 하락했으면, line_down이라고 한다
+        # 그리고 변화가 없다면, line_middle이라고 한다
         for size in ['l', 'm', 's']:
             if data[size + '_change'] > 0:
                 state = 'line_up'
@@ -189,30 +172,6 @@ class MarketSignalProcessor:
         # + 추가설명: 여기서 마켓점수는 모멘턴, 변동성, 상관관계 점수를 합친 것을 말한다
         # API ENDPOINT: /mined/api/<version>/?algorithm=MARKET&type=CALC_STYLE_INFO
         # DATA: 대형주 인덱스(large_cap_index), 중형주 인덱스(mid_cap_index), 소형주 인덱스(small_cap_index)
-
-        # ================================= #
-        # RETURN:
-        # return type: dictionary
-        # -------- kp_lg_index: 코스피 대형주 인덱스
-        # -------- kp_lg_score: 코스피 대형주 마켓점수
-        # -------- kp_lg_change: 코스피 대형주 전일대비 가격(인덱스)변화
-
-        # -------- kp_md_index: 코스피 중형주 인덱스
-        # -------- kp_md_score: 코스피 중형주 마켓점수
-        # -------- kp_md_change: 코스피 중형주 전일대비 가격(인덱스)변화
-
-        # -------- kp_sm_index: 코스피 소형주 인덱스
-        # -------- kp_sm_score: 코스피 소형주 마켓점수
-        # -------- kp_sm_change: 코스피 소형주 전일대비 가격(인덱스)변화
-
-        # -------- kd_lg_index: 코스닥 대형주 인덱스
-        # -------- kd_lg_score: 코스닥 대형주 마켓점수
-        # -------- kd_lg_change: 코스닥 대형주 전일대비 가격(인덱스)변화
-
-        # -------- kd_md_index: 코스닥 중형주 인덱스
-        # -------- kd_md_score: 코스닥 중형주 마켓점수
-        # -------- kd_md_change: 코스닥 중형주 전일대비 가격(인덱스)변화
-        # ================================= #
 
         style_list = Index.objects.filter(category='ST').order_by('-date')[:4]
         score_list = MarketScore.objects.filter(name__in=['G', 'V']).order_by('-date')[:4]
@@ -351,8 +310,26 @@ class MarketSignalProcessor:
 
     #*** Mined API #6 ***#
     def emit_buysell_signal(self):
-        pass
+        # 매수, 매도 시그널은 심플하게 계산한다
+        # 코스피, 코스닥에 대해서만 매수, 매도 시그널을 계산할 것이다.
 
-    #*** Mined API #7 ***#
-    def rate_index(self):
+        # 우선, 코스피, 코스닥에 대한 토탈 점수를 구해야한다 (혹은 데이터가 있어야 한다)
+        # 토탈 점수 = (거래대금 점수 + 모멘텀 점수 + 변동성 점수 + 상관관계 점수) // 4
+
+        # 코스피에 대해서 점수를 모두 나열하고, 현재 점수의 랭킹을 매긴다
+        # 금방 계산한 랭킹으로 --> 랭킹 / 코스피 점수 전체수 를 계산한다
+        # 0 ~ 0.50: C
+        # 0.50 ~ 0.80: B
+        # 0.80 ~ 1: A
+        # 으로 먼저 레이팅(rating)을 준다
+
+        # 레이팅을 구하였다면, 수익률 상승이나 하락이나 몇일 연속 지속되었는지 계산하여 준다
+        # 예를 들어, 데이터가 0.01, 0.02, 0.03, -0.01이라면, 하락 지속 1일 그리고 총 하락 0.01인 것이다
+        # 또, 0.01, -0.01, -0.02, -0.02이면, 하락 지속 3일 그리고 총 하락 수익률은: 1 - (1 - 0.01)*(1 - 0.02)*(1-0.02) 이다
+
+        # 위의 모든 계산을 마쳤다면,
+        # 코스닥에도 마찬가지로 진행한다!
+
+        # 마지막에는,
+        ##### 코스피/코스닥의 레이팅, 상승/하락, 지속 일수, 수익률을 리턴한다 #####
         pass

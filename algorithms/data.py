@@ -52,7 +52,9 @@ DATA_MAPPER = {
     'kospi_tickers': 'KOSPI_TICKERS',
     'kosdaq_tickers': 'KOSDAQ_TICKERS',
     'kospi_ohlcv': 'KOSPI_OHLCV',
+    'kospi_vol': 'KOSPI_VOL',
     'kosdaq_ohlcv': 'KOSDAQ_OHLCV',
+    'kosdaq_vol': 'KOSDAQ_VOL',
     'index': '_INDEX',
     'ohlcv': '_OHLCV'
 }
@@ -287,6 +289,7 @@ class Data:
 
         return ohlcv_data_list
 
+    #*** UPDATE: 20180822 ***#
     def _add_all_stocks_in_one_df(self, stocks_list, type, colname):
         ##### type (str) --> index, ohlcv, buysell
 
@@ -323,10 +326,13 @@ class Data:
 
         elif self.algorithm_type == 'rms':
             kospi_df = self._add_all_stocks_in_one_df(self.kospi_tickers, 'ohlcv', 'adj_prc')
-            kosdaq_df = self._add_all_stocks_in_one_df(self.kosdaq_tickers, 'ohlcv', 'adj_prc')
-            return kospi_df, kosdaq_df
+            kospi_vol = self._add_all_stocks_in_one_df(self.kospi_tickers, 'ohlcv', 'trd_qty')
 
-    #*** UPDATE: 20180809 ***#
+            kosdaq_df = self._add_all_stocks_in_one_df(self.kosdaq_tickers, 'ohlcv', 'adj_prc')
+            kosdaq_vol = self._add_all_stocks_in_one_df(self.kosdaq_tickers, 'ohlcv', 'trd_qty')
+            return kospi_df, kospi_vol, kosdaq_df, kosdaq_vol
+
+    #*** UPDATE: 20180822 ***#
     @timeit
     def request(self, data_type):
         # 데이터를 요청하면 Data 객체내에서 데이터를 가공한 다음 값을 사용할 수 있도록 요청한 속성들을 만들어 준다
@@ -369,16 +375,25 @@ class Data:
         elif algorithm_type == 'rms':
             if data_type == 'close':
                 kospi_ohlcv_key = DATA_MAPPER['kospi_ohlcv']
+                kospi_vol_key = DATA_MAPPER['kospi_vol']
                 kosdaq_ohlcv_key = DATA_MAPPER['kosdaq_ohlcv']
-                if self.redis_client.exists(kospi_ohlcv_key) and self.redis_client.exists(kosdaq_ohlcv_key):
+                kosdaq_vol_key = DATA_MAPPER['kosdaq_vol']
+                if self.redis_client.exists(kospi_ohlcv_key) \
+                    and self.redis_client.exists(kospi_vol_key) \
+                    and self.redis_client.exists(kosdaq_ohlcv_key) \
+                    and self.redis_client.exists(kosdaq_vol_key):
                     # 이미 모든 종목에 대해 adj_prc를 모아서 만든 df가 있다면 가져오고,
                     self.kospi_cls_df = self.get_val(kospi_ohlcv_key)
-                    self.kosdaq_cls_df = self.get_val(kosdaq_ohlcv_key) # 두 코드 모두 15초 정도 소요
+                    self.kospi_vol_df = self.get_val(kospi_vol_key)
+                    self.kosdaq_cls_df = self.get_val(kosdaq_ohlcv_key)
+                    self.kosdaq_vol_df = self.get_val(kosdaq_vol_key) # 네 코드 모두 40초 정도 소요
                 else:
                     # 없다면, 새로 그런 df를 만들어서 클래스 속성에 부여한다
-                    kospi_df, kosdaq_df = self.make_ohlcv_data_with_close() # 만드는데 10분 정도 소요
+                    kospi_df, kospi_vol, kosdaq_df, kosdaq_vol = self.make_ohlcv_data_with_close() # 만드는데 20분 정도 소요
                     self.kospi_cls_df = kospi_df
+                    self.kospi_vol_df = kospi_vol
                     self.kosdaq_cls_df = kosdaq_df
+                    self.kosdaq_vol_df = kosdaq_vol
                 # 위의 데이터를 만든 후에 저장하는 방법: (다른 앱에서 저장하기 때문에 실제로 사용할 필요는 없음)
                 # self.redis_client.set('KOSPI_OHLCV', self.kospi_cls_df.to_msgpack(compress='zlib'))
                 # self.redis_client.set('KOSDAQ_OHLCV', self.kosdaq_cls_df.to_msgpack(compress='zlib'))
