@@ -8,6 +8,28 @@ Mined.
 feat. peepee
 with love...
 '''
+
+'''
+**클래스명: Data
+
+*메소드 설명:
+
+1. get_val(self, key): 캐시 서버로 요청을 보내어 데이터를 가져올 수 있다 (보통은 Pandas의 데이터프레임 형식의 데이터이다)
+
+2. set_index_lists(self): 마켓시그널에 필요한 인덱스 정보들을 리스트로 만들어준다 (시장, 사이즈, 스타일, 산업별로)
+
+3. set_tickers_list(self): 코스피와 코스닥 종목 코드를 담은 리스트를 각각 만든다
+
+4. make_index_data(self, index_type): 인덱스 종류(시장, 사이즈, 스타일, 산업)에 따라 그 인덱스의 지수들을 모아서
+                                      딕셔너리의 형식으로 데이터를 모아서 만들어준다
+
+5. make_ohlcv_data(self): 포트폴리오 그리고 RMS툴에서 필요한 시가, 고가, 저가, 종가, 거래량 데이터를 만들어준다
+
+6. make_ohlcv_data_with_close(self): OHLCV(시가, 고가, 저가, 종가, 거래량) 데이터에서 종가만 남겨서 데이터프레임을 만들어준다
+
+7. request(self, data_type): 각 알고리즘 타입별로 필요한 데이터를 요청할 수 있다
+'''
+
 import requests
 import redis
 import pandas as pd
@@ -16,6 +38,8 @@ from mined.settings import CACHE_IP as IP
 
 from cryptography.fernet import Fernet
 from mined.crypt_key import KEY
+
+from algorithms.utils import timeit
 
 cipher_suite = Fernet(KEY)
 
@@ -27,6 +51,8 @@ DATA_MAPPER = {
     'index_tickers': 'INDEX_TICKERS',
     'kospi_tickers': 'KOSPI_TICKERS',
     'kosdaq_tickers': 'KOSDAQ_TICKERS',
+    'kospi_ohlcv': 'KOSPI_OHLCV',
+    'kosdaq_ohlcv': 'KOSDAQ_OHLCV',
     'index': '_INDEX',
     'ohlcv': '_OHLCV'
 }
@@ -134,7 +160,7 @@ class Data:
 
     이라고 인스턴스를 생성하고 'bm' 정보를 요청하면, 코스피, 코스닥 데이터가 담긴 Pandas DataFrame이 속성으로 새팅된다.
 
-    이런 방식으로 데이터를 불러오는 이유는 알고리즘 계산에 필요한 데이터만 그때그때 가져오기 위함이다.
+    이런 방식으로 데이터를 불러오는 이유는 알고리즘 계산에 필요한 데이터만 그때그때 가져오기 위함이다. (메모리 효율성)
     """
 
     def __init__(self, algorithm_type=None, stocks=None):
@@ -179,13 +205,15 @@ class Data:
             data = list(map(lambda x: x.decode('utf-8'), data))
         else:
             data = pd.read_msgpack(self.redis_client.get(key)) # 레디스에서 df 형식의 데이터를 가지고 오는 방법
+            ### 참고: 레디스에 df를 저장하는 방법은: redis.set(key, df.to_msgpack(compress='zlib'))와 같은 형식이다
         return data
 
     #*** UPDATE: 20180809 ***#
     def set_index_lists(self):
         index_list = MARKET_CODES.keys() # 인덱스 종류를 담은 리스트
+        # MARKET_CODES는 파일의 위에서 선언하였다
 
-        # 모든 인덱스 종류를 담은 리스트
+        # 모든 인덱스 종류를 담은 리스트 만들기
         # 산업별 분류는 너무 많아서 나머지 리스트에서 없는 인덱스를 가져오는 방식으로 리스트 정의
         self.bm = ['코스피', '코스닥']
         self.size = ['코스피 대형주', '코스피 중형주', '코스피 소형주', '코스닥 대형주', '코스닥 중형주', '코스닥 소형주']
@@ -232,16 +260,16 @@ class Data:
     #*** UPDATE: 20180814 ***#
     def make_ohlcv_data(self):
         # 포트폴리오에 필요한 데이터는 포트폴리오에 포함되어 있는 종목이다
-        # RMS에 필요한 데이터는 코스피, 코스닥 모든 종목 데이터이다
         if self.algorithm_type == 'portfolio':
-            stock_list = self.port_stocks
+            stock_list = self.port_stocks # 유저가 설정한 포트폴리오의 종목들만 stock_list로 정의내린다
 
+        # RMS에 필요한 데이터는 코스피, 코스닥 모든 종목 데이터이다
         elif self.algorithm_type == 'rms':
-            stock_list = self.kospi_tickers + self.kosdaq_tickers
+            stock_list = self.kospi_tickers + self.kosdaq_tickers # 코스피, 코스닥 전체 종목을 stock_list라 한다
 
             # RMS 데이터는 코스피, 코스닥 종목 갯수로 리스트를 나누어 리턴한다
             # 그러기 위해서는 코스피와 코스닥 전체 종목 수를 알아야한다
-            kp_count = len(self.kospi_tickers)
+            kp_count = len(self.kospi_tickers) # 코스피 종목의 count이다
             kd_count = len(self.kosdaq_tickers) # 없어도됨!
 
         # 데이터 요청을 보내어 리턴되는 DF들을 리스트 안에 넣는다
@@ -259,7 +287,47 @@ class Data:
 
         return ohlcv_data_list
 
+    def _add_all_stocks_in_one_df(self, stocks_list, type, colname):
+        ##### type (str) --> index, ohlcv, buysell
+
+        temp_df = pd.DataFrame() # 임시 데이터프레임을 만든다
+        for i in range(len(stocks_list)):
+            stock = stocks_list[i] # 종목 코드 이름을 stock 변수로 설정한다
+            print('{}/{} - {}'.format(i, len(stocks_list), stock)) # 디버깅 용도
+            data_key = stock + DATA_MAPPER[type] # 캐시 서버에서 사용되는 종목의 키값이다
+            temp_df = self.get_val(data_key)
+            try:
+                # 여기서 에러가 발생하면, 데이터가 없다는 것이다
+                temp_df = temp_df[['date', colname]] # 날짜와 colname 데이터만 뽑아온다
+                temp_df.set_index('date', inplace=True) # 날짜를 인덱스로 둔다
+                temp_df.rename(columns={colname: stock}, inplace=True) # colname을 코드이름으로 바꾼다
+                if i == 0:
+                    # 처음 루프를 돌리는 것이면, temp_df를 result_df라고한다
+                    result_df = temp_df
+                else:
+                    # 처음 루프를 돌리는 것이 아니면, 기존에 만들어진 result_df에 temp_df를 합해준다
+                    # 인덱스가 둘다 date이기 때문에 무리없이 합쳐질 수 있어야한다
+                    result_df = pd.concat([result_df, temp_df], axis=1, sort=True)
+            except:
+                continue # 에러가 발생하면 그냥 하던 일을 계속한다
+        result_df.index = pd.to_datetime(result_df.index) # 시계열 분석이 쉽도록 완성된 데이터프레임의 인덱스를 datetime형식으로 변환한다
+        return result_df
+
+    #*** UPDATE: 20180822 ***#
+    def make_ohlcv_data_with_close(self):
+        if self.algorithm_type == 'portfolio':
+            stock_list = self.port_stocks
+            # ohlcv 데이터를 불러와서 cls_prc로 합친다
+            close_df = self._add_all_stocks_in_one_df(stock_list, 'ohlcv', 'cls_prc')
+            return close_df
+
+        elif self.algorithm_type == 'rms':
+            kospi_df = self._add_all_stocks_in_one_df(self.kospi_tickers, 'ohlcv', 'adj_prc')
+            kosdaq_df = self._add_all_stocks_in_one_df(self.kosdaq_tickers, 'ohlcv', 'adj_prc')
+            return kospi_df, kosdaq_df
+
     #*** UPDATE: 20180809 ***#
+    @timeit
     def request(self, data_type):
         # 데이터를 요청하면 Data 객체내에서 데이터를 가공한 다음 값을 사용할 수 있도록 요청한 속성들을 만들어 준다
         algorithm_type = self.algorithm_type
@@ -291,7 +359,26 @@ class Data:
                 self.industry_data = industry_data
 
         elif algorithm_type == 'portfolio':
-            pass
+            if data_type == 'ohlcv':
+                ohlcv_data_list = self.make_ohlcv_data()
+                self.ohlcv_data_list = ohlcv_data_list
+            elif data_type == 'close':
+                close_df = self.make_ohlcv_data_with_close()
+                self.port_cls_df = close_df
 
         elif algorithm_type == 'rms':
-            pass
+            if data_type == 'close':
+                kospi_ohlcv_key = DATA_MAPPER['kospi_ohlcv']
+                kosdaq_ohlcv_key = DATA_MAPPER['kosdaq_ohlcv']
+                if self.redis_client.exists(kospi_ohlcv_key) and self.redis_client.exists(kosdaq_ohlcv_key):
+                    # 이미 모든 종목에 대해 adj_prc를 모아서 만든 df가 있다면 가져오고,
+                    self.kospi_cls_df = self.get_val(kospi_ohlcv_key)
+                    self.kosdaq_cls_df = self.get_val(kosdaq_ohlcv_key) # 두 코드 모두 15초 정도 소요
+                else:
+                    # 없다면, 새로 그런 df를 만들어서 클래스 속성에 부여한다
+                    kospi_df, kosdaq_df = self.make_ohlcv_data_with_close() # 만드는데 10분 정도 소요
+                    self.kospi_cls_df = kospi_df
+                    self.kosdaq_cls_df = kosdaq_df
+                # 위의 데이터를 만든 후에 저장하는 방법: (다른 앱에서 저장하기 때문에 실제로 사용할 필요는 없음)
+                # self.redis_client.set('KOSPI_OHLCV', self.kospi_cls_df.to_msgpack(compress='zlib'))
+                # self.redis_client.set('KOSDAQ_OHLCV', self.kosdaq_cls_df.to_msgpack(compress='zlib'))
