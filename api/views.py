@@ -1,4 +1,3 @@
-from django.shortcuts import render
 from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -6,7 +5,7 @@ from rest_framework.views import APIView
 from algorithms.marketsignal import MarketSignalProcessor
 
 
-#*** UPDATE: 20180806 ***#
+# *** UPDATE: 20180806 ***#
 class TestAPIView(APIView):
     permission_classes = (permissions.AllowAny,)
 
@@ -15,10 +14,10 @@ class TestAPIView(APIView):
         return Response(result, status=status.HTTP_200_OK)
 
 
-#*** UPDATE: 20180806 ***#
+# *** UPDATE: 20180806 ***#
 class TaskAPIView(APIView):
     # 레퍼런스: http://www.django-rest-framework.org/api-guide/status-codes/ (status code)
-    
+
     ## /mined/api/<version>/?algorithm=<algorithm>&task=<taskname> ##
     # version: v1
     # algorithm: MARKET, SCANNER, PORTFOLIO, RMS
@@ -42,7 +41,7 @@ class TaskAPIView(APIView):
             print('task portfolio')
         ##### ALGO #4 #####
         elif algorithm == 'RMS':
-            print('task portfolio')
+            print('task rms')
         else:
             # 받은 알고리즘 값이 존재하지 않는 알고리즘이면 '없는 알고리즘'이라고 리턴
             result = '없는 알고리즘'

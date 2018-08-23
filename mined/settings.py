@@ -8,7 +8,7 @@ DEBUG = True
 
 ##### 새팅 상태 위에서 먼저 정의 #####
 # 민감한 정보 불러오기: 아이피 주소
-testing = os.environ.get('TRAVIS', 'False') # Travis에서 작동하는지 확인
+testing = os.environ.get('TRAVIS', 'False')  # Travis에서 작동하는지 확인
 ###############################
 
 if testing == 'True':
@@ -17,7 +17,7 @@ if testing == 'True':
 else:
     from mined.crypt_key import KEY
 
-KEY = KEY.encode() # 스트링값 바이트로 변경
+KEY = KEY.encode()  # 스트링값 바이트로 변경
 cipher_suite = Fernet(KEY)
 
 ciphered_ip = b'gAAAAABbVoauSecxvUiw8vJxatyndiW-uWMGRl722bOkbMZK8gVoEwy0c2xCrwJBt_6fMTp8DtSh5Kj3gQcBcf16Di-UuUgr5w=='
@@ -116,7 +116,7 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-LANGUAGE_CODE = 'ko-KR' # http://www.i18nguy.com/unicode/language-identifiers.html
+LANGUAGE_CODE = 'ko-KR'  # http://www.i18nguy.com/unicode/language-identifiers.html
 TIME_ZONE = 'Asia/Seoul'
 USE_I18N = True
 USE_L10N = True
@@ -126,7 +126,7 @@ STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'static/')
 
 # https://github.com/ottoyiu/django-cors-headers
-CORS_ORIGIN_ALLOW_ALL = True # 외부에서 API 요청 가능하도록 새팅
+CORS_ORIGIN_ALLOW_ALL = True  # 외부에서 API 요청 가능하도록 새팅
 
 # # setup MINED server with Rabbitmq configuration
 # amqp_url = 'amqp://{}:5672//'.format(IP_ADDRESS)
