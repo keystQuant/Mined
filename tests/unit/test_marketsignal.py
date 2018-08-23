@@ -15,7 +15,7 @@ from algorithms.marketsignal import MarketSignalProcessor
 
 class MarketSignalTestCase(TestCase):
     def test_calc_bm_info(self):
-        p = MarketSignalProcessor('calc_bm_info')
+        p = MarketSignalProcessor('CALC_BM_INFO')
         result = p.reduce()
         self.assertIsNotNone(result)
         self.assertIn('kospi_index', result)
@@ -25,14 +25,17 @@ class MarketSignalTestCase(TestCase):
         self.assertIn('kosdaq_change', result)
         self.assertIn('kosdaq_rate', result)
 
-    def test_get_size_info(self):
-        p = MarketSignalProcessor('get_size_info')
+    def test_calc_size_info(self):
+        p = MarketSignalProcessor('CALC_SIZE_INFO')
 
-    def test_get_style_info(self):
-        p = MarketSignalProcessor('get_style_info')
+    def test_calc_style_info(self):
+        p = MarketSignalProcessor('CALC_STYLE_INFO')
 
-    def test_get_industry_info(self):
-        p = MarketSignalProcessor('get_industry_info')
+    def test_calc_industry_info(self):
+        p = MarketSignalProcessor('CALC_INDUSTRY_INFO')
 
     def test_make_rank_data(self):
-        p = MarketSignalProcessor('make_rank_data')
+        p = MarketSignalProcessor('MAKE_RANK_DATA')
+
+    def test_emit_buysell_signal(self):
+        p = MarketSignalProcessor('EMIT_BUYSELL_SIGNAL')

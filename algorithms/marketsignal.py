@@ -66,11 +66,11 @@ class MarketSignalProcessor:
         return float(format(round(data, 4), '.4f')) * 100
 
     # *** Mined API #1 ***#
-    # *** UPDATE: 20180725 ***#
+    # *** UPDATE: 20180823 ***#
     def calc_bm_info(self):
-        #####################################
-        ##### Get Benchmark Information #####
-        #####################################
+        ###########################################
+        ##### Calculate Benchmark Information #####
+        ###########################################
 
         # DESCRIPTION: 코스피, 코스닥 인덱스, 전일대비 가격변화, 1D 수익률 리턴
         # API ENDPOINT: /mined/api/<version>/?algorithm=MARKET&task=CALC_BM_INFO
@@ -108,11 +108,11 @@ class MarketSignalProcessor:
         }
 
     # *** Mined API #2 ***#
-    # *** UPDATE: 20180726 ***#
-    def get_size_info(self):
-        #####################################
-        ##### Get Size Information #####
-        #####################################
+    # *** UPDATE: 20180823 ***#
+    def calc_size_info(self):
+        ######################################
+        ##### Calculate Size Information #####
+        ######################################
 
         # DESCRIPTION: 코스피/코스닥 대형주, 중형주, 소형주 인덱스, 마켓점수, 전일대비 가격변화, 1D 수익률 리턴
         # + 추가설명: 여기서 마켓점수는 모멘턴, 변동성, 상관관계 점수를 합친 것을 말한다
@@ -161,11 +161,11 @@ class MarketSignalProcessor:
         return data
 
     # *** Mined API #3 ***#
-    # *** UPDATE: 20180811 ***#
-    def _get_style_info(self):
-        #####################################
-        ##### Get Style Information #####
-        #####################################
+    # *** UPDATE: 20180823 ***#
+    def calc_style_info(self):
+        #######################################
+        ##### Calculate Style Information #####
+        #######################################
 
         # DESCRIPTION: 성장주, 가치주, 배당주, 퀄리티주, 사회책임경영주 인덱스, 마켓점수, 전일대비 가격변화, 1D 수익률 리턴
         # + 추가설명: 여기서 마켓점수는 모멘턴, 변동성, 상관관계 점수를 합친 것을 말한다
@@ -209,7 +209,12 @@ class MarketSignalProcessor:
         return data
 
     # *** Mined API #4 ***#
-    def _get_industry_info(self):
+    # *** UPDATE: 20180823 ***#
+    def calc_industry_info(self):
+        ##########################################
+        ##### Calculate Industry Information #####
+        ##########################################
+
         industry_qs = Index.objects.filter(category='I')
         last_date = industry_qs.order_by('-date').first().date
         ranked_index = [data.name for data in industry_qs.filter(date=last_date).order_by('-index')[:3]]
@@ -261,7 +266,12 @@ class MarketSignalProcessor:
         return data
 
     # *** Mined API #5 ***#
+    # *** UPDATE: 20180823 ***#
     def make_rank_data(self):
+        ##########################
+        ##### Make Rank Data #####
+        ##########################
+
         date = datetime.now().strftime('%Y%m%d')
         date_cut = Info.objects.order_by('-date').first().date
         ind_list = [ind[0] for ind in Info.objects.filter(date=date_cut).distinct('industry').values_list('industry')]
@@ -316,7 +326,12 @@ class MarketSignalProcessor:
             print('Successfully saved {} data'.format(filter_by))
 
     # *** Mined API #6 ***#
+    # *** UPDATE: 20180823 ***#
     def emit_buysell_signal(self):
+        ###############################
+        ##### Emit Buysell Signal #####
+        ###############################
+
         # 매수, 매도 시그널은 심플하게 계산한다
         # 코스피, 코스닥에 대해서만 매수, 매도 시그널을 계산할 것이다.
 
