@@ -8,9 +8,10 @@ Mined.
 feat. peepee
 with love...
 '''
-from datetime import datetime
-import pandas as pd
+from django.utils import timezone
+
 import numpy as np
+import pandas as pd
 
 from algorithms.data import Data
 
@@ -28,14 +29,14 @@ class MarketSignalProcessor:
 
     '''
 
-    #*** UPDATE: 20180725 ***#
+    # *** UPDATE: 20180725 ***#
     def __init__(self, taskname, today_date=None):
-        self.taskname = taskname.lower() # 태스크 이름을 받아서 소문자로 바꾼다
+        self.taskname = taskname.lower()  # 태스크 이름을 받아서 소문자로 바꾼다
 
         # 오늘 날짜를 인자로 받고, 아무값이 들어오지 않았다면 YYYYMMDD형식으로 직접 포맷하여
         # self.today_date로 새팅
         if today_date == None:
-            self.today_date = datetime.now().strftime('%Y%m%d')
+            self.today_date = timezone.now().strftime('%Y%m%d')
         else:
             self.today_date = today_date
 
@@ -43,36 +44,36 @@ class MarketSignalProcessor:
         # 어떤 데이트를 필요로 하는지 알기 위해 'marketsignal'을 인자로 보내준다.
         self.data = Data('marketsignal')
 
-    #*** UPDATE: 20180806 ***#
+    # *** UPDATE: 20180806 ***#
     def reduce(self):
         taskname = self.taskname
         # 클래스 내에 태스크명과 같은 함수 이름이 있는지 확인한다.
         if hasattr(self, taskname):
-            reducer = getattr(self, taskname) # 태스크명과 같은 메소드를 리듀서라고 부른다
-            response = reducer() # 리듀서를 실행시키고 반환된 값을 다시 리턴한다
+            reducer = getattr(self, taskname)  # 태스크명과 같은 메소드를 리듀서라고 부른다
+            response = reducer()  # 리듀서를 실행시키고 반환된 값을 다시 리턴한다
             return response
         else:
-            return { 'state': '{} 태스크는 없습니다'.format(taskname) }
+            return {'state': '{} 태스크는 없습니다'.format(taskname)}
 
-    #*** UPDATE: 20180725 ***#
+    # *** UPDATE: 20180725 ***#
     def format_decimal(self, data):
         # x.xxxxxxxx... 형식의 float 숫자를 x.xx형식으로 변환하여 리턴
         return float(format(round(data, 2), '.2f'))
 
-    #*** UPDATE: 20180725 ***#
+    # *** UPDATE: 20180725 ***#
     def change_to_pct(self, data):
         # 0.xxxxxxxx... 형식의 float 숫자를 xx.xx형식으로 변환하여 리턴 (%로 변환)
         return float(format(round(data, 4), '.4f')) * 100
 
-    #*** Mined API #1 ***#
-    #*** UPDATE: 20180725 ***#
+    # *** Mined API #1 ***#
+    # *** UPDATE: 20180725 ***#
     def calc_bm_info(self):
         #####################################
         ##### Get Benchmark Information #####
         #####################################
 
         # DESCRIPTION: 코스피, 코스닥 인덱스, 전일대비 가격변화, 1D 수익률 리턴
-        # API ENDPOINT: /mined/api/<version>/?algorithm=MARKET&type=CALC_BM_INFO
+        # API ENDPOINT: /mined/api/<version>/?algorithm=MARKET&task=CALC_BM_INFO
         # DATA: 코스피 인덱스(kospi_index), 코스닥 인덱스(kosdaq_index)
 
         # ================================= #
@@ -88,28 +89,26 @@ class MarketSignalProcessor:
 
         data = self.data
         data.request('bm')
-        # 데이터는 판다스 데이터프레임 안에 있다
+
         kospi_index = data.kospi_index
         kosdaq_index = data.kosdaq_index
 
-        print(kospi_index)
+        kospi_change = kospi_index.iloc[-1][0] - kospi_index.iloc[-2][0]
+        kospi_rate = kospi_change / kospi_index.iloc[-2][0]
+        kosdaq_change = kosdaq_index.iloc[-1][0] - kosdaq_index.iloc[-2][0]
+        kosdaq_rate = kosdaq_change / kosdaq_index.iloc[-2][0]
 
-        # kospi_change = kospi_index[0] - kospi_index[1] # 전일대비 가격변화
-        # kospi_rate = kospi_change/kospi_index[1] # 1 Day 수익률
-        # kosdaq_change = kosdaq_index[0] - kosdaq_index[1]
-        # kosdaq_rate = kosdaq_change/kosdaq_index[1]
-        # # 리턴하는 값들은 딕셔너리에 넣어서 리턴
-        # return {
-        #     'kospi_index': self.format_decimal(kospi_index[0]),
-        #     'kospi_change': self.format_decimal(kospi_change),
-        #     'kospi_rate': self.change_to_pct(kospi_rate),
-        #     'kosdaq_index': self.format_decimal(kosdaq_index[0]),
-        #     'kosdaq_change': self.format_decimal(kosdaq_change),
-        #     'kosdaq_rate': self.change_to_pct(kosdaq_rate)
-        # }
+        return {
+            'kospi_index': self.format_decimal(kospi_index.iloc[-1][0]),
+            'kospi_change': self.format_decimal(kospi_change),
+            'kospi_rate': self.change_to_pct(kospi_rate),
+            'kosdaq_index': self.format_decimal(kosdaq_index.iloc[-1][0]),
+            'kosdaq_change': self.format_decimal(kosdaq_change),
+            'kosdaq_rate': self.change_to_pct(kosdaq_rate)
+        }
 
-    #*** Mined API #2 ***#
-    #*** UPDATE: 20180726 ***#
+    # *** Mined API #2 ***#
+    # *** UPDATE: 20180726 ***#
     def get_size_info(self):
         #####################################
         ##### Get Size Information #####
@@ -117,7 +116,7 @@ class MarketSignalProcessor:
 
         # DESCRIPTION: 코스피/코스닥 대형주, 중형주, 소형주 인덱스, 마켓점수, 전일대비 가격변화, 1D 수익률 리턴
         # + 추가설명: 여기서 마켓점수는 모멘턴, 변동성, 상관관계 점수를 합친 것을 말한다
-        # API ENDPOINT: /mined/api/<version>/?algorithm=MARKET&type=CALC_SIZE_INFO
+        # API ENDPOINT: /mined/api/<version>/?algorithm=MARKET&task=CALC_SIZE_INFO
         # DATA: 대형주 인덱스(large_cap_index), 중형주 인덱스(mid_cap_index), 소형주 인덱스(small_cap_index)
 
         data = self.data
@@ -161,8 +160,8 @@ class MarketSignalProcessor:
             data[size + '_state'] = state
         return data
 
-    #*** Mined API #3 ***#
-    #*** UPDATE: 20180811 ***#
+    # *** Mined API #3 ***#
+    # *** UPDATE: 20180811 ***#
     def _get_style_info(self):
         #####################################
         ##### Get Style Information #####
@@ -170,7 +169,7 @@ class MarketSignalProcessor:
 
         # DESCRIPTION: 성장주, 가치주, 배당주, 퀄리티주, 사회책임경영주 인덱스, 마켓점수, 전일대비 가격변화, 1D 수익률 리턴
         # + 추가설명: 여기서 마켓점수는 모멘턴, 변동성, 상관관계 점수를 합친 것을 말한다
-        # API ENDPOINT: /mined/api/<version>/?algorithm=MARKET&type=CALC_STYLE_INFO
+        # API ENDPOINT: /mined/api/<version>/?algorithm=MARKET&task=CALC_STYLE_INFO
         # DATA: 대형주 인덱스(large_cap_index), 중형주 인덱스(mid_cap_index), 소형주 인덱스(small_cap_index)
 
         style_list = Index.objects.filter(category='ST').order_by('-date')[:4]
@@ -209,7 +208,7 @@ class MarketSignalProcessor:
             data[size + '_state'] = state
         return data
 
-    #*** Mined API #4 ***#
+    # *** Mined API #4 ***#
     def _get_industry_info(self):
         industry_qs = Index.objects.filter(category='I')
         last_date = industry_qs.order_by('-date').first().date
@@ -261,7 +260,7 @@ class MarketSignalProcessor:
             data[size + '_state'] = state
         return data
 
-    #*** Mined API #5 ***#
+    # *** Mined API #5 ***#
     def make_rank_data(self):
         date = datetime.now().strftime('%Y%m%d')
         date_cut = Info.objects.order_by('-date').first().date
@@ -274,17 +273,25 @@ class MarketSignalProcessor:
         for filter_by in loop_list:
             print(filter_by)
             if (filter_by == 'KOSPI') or (filter_by == 'KOSDAQ'):
-                mkt_list = [data[0] for data in Ticker.objects.filter(market_type=filter_by).distinct('code').values_list('code')]
-                queryset = Specs.objects.filter(date=specs_date_cut).filter(code__in=mkt_list).order_by('total_score').reverse()[:100]
+                mkt_list = [data[0] for data in
+                            Ticker.objects.filter(market_type=filter_by).distinct('code').values_list('code')]
+                queryset = Specs.objects.filter(date=specs_date_cut).filter(code__in=mkt_list).order_by(
+                    'total_score').reverse()[:100]
             elif (filter_by == 'L') or (filter_by == 'M') or (filter_by == 'S'):
-                s_list = [data[0] for data in Info.objects.filter(date=date_cut).filter(size_type=filter_by).values_list('code')]
-                queryset = Specs.objects.filter(date=specs_date_cut).filter(code__in=s_list).order_by('total_score').reverse()[:100]
+                s_list = [data[0] for data in
+                          Info.objects.filter(date=date_cut).filter(size_type=filter_by).values_list('code')]
+                queryset = Specs.objects.filter(date=specs_date_cut).filter(code__in=s_list).order_by(
+                    'total_score').reverse()[:100]
             elif (filter_by == 'G') or (filter_by == 'V'):
-                st_list = [data[0] for data in Info.objects.filter(date=date_cut).filter(style_type=filter_by).values_list('code')]
-                queryset = Specs.objects.filter(date=specs_date_cut).filter(code__in=st_list).order_by('total_score').reverse()[:100]
+                st_list = [data[0] for data in
+                           Info.objects.filter(date=date_cut).filter(style_type=filter_by).values_list('code')]
+                queryset = Specs.objects.filter(date=specs_date_cut).filter(code__in=st_list).order_by(
+                    'total_score').reverse()[:100]
             else:
-                i_list = [data[0] for data in Info.objects.filter(date=date_cut).filter(industry=filter_by).values_list('code')]
-                queryset = Specs.objects.filter(date=specs_date_cut).filter(code__in=i_list).order_by('total_score').reverse()[:100]
+                i_list = [data[0] for data in
+                          Info.objects.filter(date=date_cut).filter(industry=filter_by).values_list('code')]
+                queryset = Specs.objects.filter(date=specs_date_cut).filter(code__in=i_list).order_by(
+                    'total_score').reverse()[:100]
             data_num = 1
             data_list = []
             for data in queryset:
@@ -308,7 +315,7 @@ class MarketSignalProcessor:
             RankData.objects.bulk_create(data_list)
             print('Successfully saved {} data'.format(filter_by))
 
-    #*** Mined API #6 ***#
+    # *** Mined API #6 ***#
     def emit_buysell_signal(self):
         # 매수, 매도 시그널은 심플하게 계산한다
         # 코스피, 코스닥에 대해서만 매수, 매도 시그널을 계산할 것이다.

@@ -26,12 +26,12 @@ class TaskAPIView(APIView):
 
     def get(self, request, *args, **kwargs):
         algorithm = request.GET.get('algorithm')
-        type = request.GET.get('type')
+        task = request.GET.get('task')
 
         ##### 모든 태스크 클래스는 리듀서를 불러서 result 값을 받아야 합니다 #####
         ##### ALGO #1 #####
         if algorithm == 'MARKET':
-            task_class = MarketSignalProcessor(type)
+            task_class = MarketSignalProcessor(task)
             result = task_class.reduce()
         ##### ALGO #2 #####
         elif algorithm == 'SCANNER':
@@ -49,7 +49,7 @@ class TaskAPIView(APIView):
         # 위에서 받은 result 값을 result_json에 result키값으로 넣어준다
         if result == '없는 알고리즘':
             result_json = {'status': 'FAIL', 'result': result}
-            return Response(result_json, status=status.HTTP_200_OK)
+            return Response(result_json, status=status.HTTP_400_BAD_REQUEST)
         else:
             result_json = {'status': 'GOOD', 'result': result}
-            return Response(result_json, status=status.HTTP_400_BAD_REQUEST)
+            return Response(result_json, status=status.HTTP_200_OK)
