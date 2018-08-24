@@ -91,14 +91,13 @@ class MarketSignalProcessor:
         data.request('bm')
 
         kospi_index = data.kospi_index
-        kosdaq_index = data.kosdaq_index
-
         kospi_change = kospi_index.iloc[-1][0] - kospi_index.iloc[-2][0]
         kospi_rate = kospi_change / kospi_index.iloc[-2][0]
+        kosdaq_index = data.kosdaq_index
         kosdaq_change = kosdaq_index.iloc[-1][0] - kosdaq_index.iloc[-2][0]
         kosdaq_rate = kosdaq_change / kosdaq_index.iloc[-2][0]
 
-        return {
+        ret = {
             'kospi_index': self.format_decimal(kospi_index.iloc[-1][0]),
             'kospi_change': self.format_decimal(kospi_change),
             'kospi_rate': self.change_to_pct(kospi_rate),
@@ -106,6 +105,8 @@ class MarketSignalProcessor:
             'kosdaq_change': self.format_decimal(kosdaq_change),
             'kosdaq_rate': self.change_to_pct(kosdaq_rate)
         }
+
+        return ret
 
     # *** Mined API #2 ***#
     # *** UPDATE: 20180823 ***#

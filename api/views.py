@@ -3,6 +3,9 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from algorithms.marketsignal import MarketSignalProcessor
+from algorithms.portfolio import PortfolioProcessor
+from algorithms.rms import RMSProcessor
+from algorithms.scanner import ScannerProcessor
 
 
 # *** UPDATE: 20180806 ***#
@@ -35,13 +38,16 @@ class TaskAPIView(APIView):
             result = task_class.reduce()
         ##### ALGO #2 #####
         elif algorithm == 'SCANNER':
-            print('task scanner')
+            task_class = ScannerProcessor(task)
+            result = task_class.reduce()
         ##### ALGO #3 #####
         elif algorithm == 'PORTFOLIO':
-            print('task portfolio')
+            task_class = PortfolioProcessor(task)
+            result = task_class.reduce()
         ##### ALGO #4 #####
         elif algorithm == 'RMS':
-            print('task rms')
+            task_class = RMSProcessor(task)
+            result = task_class.reduce()
         else:
             # 받은 알고리즘 값이 존재하지 않는 알고리즘이면 '없는 알고리즘'이라고 리턴
             result = '없는 알고리즘'

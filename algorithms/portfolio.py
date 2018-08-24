@@ -8,8 +8,7 @@ Mined.
 feat. peepee
 with love...
 '''
-import math, datetime, time
-from datetime import datetime
+import numpy as np
 import pandas as pd
 
 from algorithms.data import Data
@@ -45,14 +44,14 @@ class PortfolioProcessor(object):
 
     '''
 
-    #*** UPDATE: 20180730 ***#
-    def __init__(self, portfolio_type, stocks, capital):
+    # *** UPDATE: 20180730 ***#
+    def __init__(self, taskname, portfolio_type, stocks, capital):
         ## ** 인자 설명 ** ##
         ### portfolio_type (str) --> 포트폴리오 타입은 S 혹은 CS이다. (S: Stock, CS: Cash + Stock)
         ### stocks (list) --> ['000020', '000030'] --> 리스트 형식]
         ### capital (int) --> 총 투자 자본금
 
-        # Data 인스턴스 생성/부여
+        self.taskname = taskname.lower()
         self.data = Data('portfolio', stocks)
 
         # 포트폴리오의 메타데이터를 만든다
@@ -61,19 +60,29 @@ class PortfolioProcessor(object):
             'stocks': stocks,
             'stock_count': len(stocks),
             'capital': capital,
-            'capital_per_stock': capital//len(stocks) # 각 주식에 기본적으로 얼마를 투자해야 하는지 계산
-        } # 입력받은 인자로 포트폴리오 기본 정보 설정하기
+            'capital_per_stock': capital // len(stocks)  # 각 주식에 기본적으로 얼마를 투자해야 하는지 계산
+        }  # 입력받은 인자로 포트폴리오 기본 정보 설정하기
 
         # 클래스 속성 설정
-        self.port_params = port # 위에서 만든 port 딕셔너리를 속성으로 만든다
-        self.ratio_dict = {'cash': 0} # 시작 현금 금액은 0원이다.
+        self.port_params = port  # 위에서 만든 port 딕셔너리를 속성으로 만든다
+        self.ratio_dict = {'cash': 0}  # 시작 현금 금액은 0원이다.
         # 만약, port['portfolio'] == 'S' 이면 현금 금액은 계속 0이다.
         # 만약, port['portfolio'] == 'CS' 이면 현금 금액은 알고리즘에 따라 변해야 한다.
         # 앞으로, self.ratio_dict에 다른 종목들 비중도 계산하여 업데이트해줄 것이다
 
         # Data 인스턴스를 생성하여 stocks에서 입력받은 주가 정보를 받아온다.
-        ohlcv_data_list = self.data.make_ohlcv_data() # OHLCV 정보를 받아온다
+        ohlcv_data_list = self.data.make_ohlcv_data()  # OHLCV 정보를 받아온다
         self.ohlcv_inst_list = ohlcv_data_list
+
+    # *** UPDATE: 20180824 ***#
+    def reduce(self):
+        taskname = self.taskname
+        if hasattr(self, taskname):
+            reducer = getattr(self, taskname)
+            response = reducer()
+            return response
+        else:
+            return {'state': '{} 태스크는 없습니다'.format(taskname)}
 
     def get_recent_stock_close_price(self, ticker):
         # 종목의 코드를 인자로 받아서 그 종목의 최근 종가를 리턴하는 메소드
@@ -85,9 +94,9 @@ class PortfolioProcessor(object):
 
         for stock in port['stocks']:
             code = stock.code.code
-            ohlcv = self.get_recent_stock_close_price(code) # 제일 최근 종가 가져오기
+            ohlcv = self.get_recent_stock_close_price(code)  # 제일 최근 종가 가져오기
             if ohlcv.exists():
-                ohlcv_inst = ohlcv.first() # get the most recent ohlcv instance
+                ohlcv_inst = ohlcv.first()  # get the most recent ohlcv instance
                 ticker_inst = Ticker.objects.filter(code=ohlcv_inst.code).order_by('-date').first()
 
                 self.ohlcv_inst_list.append(ohlcv_inst)
@@ -103,7 +112,7 @@ class PortfolioProcessor(object):
                 self.ratio_dict[code] = stock_data
                 capital_per_stock = port['capital_per_stock']
                 if close_price < capital_per_stock:
-                    stock_num = capital_per_stock//close_price
+                    stock_num = capital_per_stock // close_price
                     invested = int(stock_num * close_price)
                     self.ratio_dict[code]['invested'] = invested
                     self.ratio_dict[code]['buy_num'] = stock_num
@@ -123,16 +132,16 @@ class PortfolioProcessor(object):
             if len(extra_buy) == 0:
                 redistribute = False
                 continue
-            extra_capital_per_stock = left_over_capital//len(extra_buy)
-            extra_buy_num = list(map(lambda x: extra_capital_per_stock//x.close_price, extra_buy))
+            extra_capital_per_stock = left_over_capital // len(extra_buy)
+            extra_buy_num = list(map(lambda x: extra_capital_per_stock // x.close_price, extra_buy))
             if sum(extra_buy_num) == 0:
                 redistribute = False
                 continue
             close_price_list = [ohlcv.close_price for ohlcv in extra_buy]
-            reset_left_over = int(left_over_capital - sum(map(lambda x, y: x*y, extra_buy_num, close_price_list)))
+            reset_left_over = int(left_over_capital - sum(map(lambda x, y: x * y, extra_buy_num, close_price_list)))
             extra_stocks = [ohlcv.code for ohlcv in extra_buy]
             for i in range(len(extra_stocks)):
-                extra_invested = extra_buy_num[i]*close_price_list[i]
+                extra_invested = extra_buy_num[i] * close_price_list[i]
                 self.ratio_dict[extra_stocks[i]]['invested'] += int(extra_invested)
                 self.ratio_dict[extra_stocks[i]]['buy_num'] += int(extra_buy_num[i])
             self.ratio_dict['cash'] = reset_left_over
@@ -140,7 +149,7 @@ class PortfolioProcessor(object):
             left_over_capital = reset_left_over
         for key, val in self.ratio_dict.items():
             if key != 'cash':
-                stock_ratio = val['invested']/self.port_params['capital']
+                stock_ratio = val['invested'] / self.port_params['capital']
                 self.ratio_dict[key]['ratio'] = float(format(round(stock_ratio, 4), '.4f'))
         pd_inst = PortfolioDiagnosis(portfolio=self.port_params['portfolio'], ratio=self.ratio_dict)
         pd_inst.save()

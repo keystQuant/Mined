@@ -8,33 +8,20 @@ Mined.
 feat. peepee
 with love...
 '''
-import math, time
-from datetime import datetime
 import numpy as np
-from numpy import *
 import pandas as pd
-import scipy.optimize
 
 from algorithms.data import Data
 from algorithms.utils import timeit
 
 
-class RMS:
-    """
-    RMS: Risk Management System
+class RMSProcessor:
 
-    ** 설명:
+    # *** UPDATE: 20180824 ***#
+    def __init__(self, taskname, ratio_dict=None):
+        self.taskname = taskname.lower()
+        self.data = Data('rms')
 
-    ** 태스크:
-    1.
-    """
-
-    #*** UPDATE: 20180815 ***#
-    def __init__(self, mode='score', ratio_dict=None):
-        # 인자 설명:
-
-        ### mode (str) --> RMS을 포트폴리오 분석용, 최적 포트폴리오 계산용, 점수 계산용으로 사용할 수 있다
-        ###                portfolio, recommendation, score: 세 가지 옵션을 줄 수 있다
         ### ratio_dict (dict) --> algorithms.portfolio.PortfolioProcessor가 redistribute하고
         ###                       최종적으로 생기는 ratio_dict와 같은 형식
         self.ratio_dict = ratio_dict
@@ -50,7 +37,17 @@ class RMS:
             'ohlcv_list': list()
         }
 
-    #*** UPDATE: 20180815 ***#
+    # *** UPDATE: 20180824 ***#
+    def reduce(self):
+        taskname = self.taskname
+        if hasattr(self, taskname):
+            reducer = getattr(self, taskname)
+            response = reducer()
+            return response
+        else:
+            return {'state': '{} 태스크는 없습니다'.format(taskname)}
+
+    # *** UPDATE: 20180815 ***#
     def set_port_analysis_settings(self):
         ### 포트폴리오 분석, 최적 포트폴리오 계산용 옵션이다
         ### mode == 'portfolio' or mode == 'recommendation'
@@ -60,12 +57,12 @@ class RMS:
         ticker_list = self.settings['ticker_list']
 
         # Data 인스턴스 생성
-        self.data = Data('rms', ticker_list) # Data 인스턴스 생성자 stocks 인자를 넣어준다
+        self.data = Data('rms', ticker_list)  # Data 인스턴스 생성자 stocks 인자를 넣어준다
 
         # ohlcv_list 리스트 생성하기
         print('create ohlcv_list with Data instance')
 
-    #*** UPDATE: 20180815 ***#
+    # *** UPDATE: 20180815 ***#
     def set_periodic_close(self, ohlcv_df, period='M'):
         ### 인자 설명:
         ### 1. ohlcv_df (pd.DataFrame)
@@ -74,7 +71,8 @@ class RMS:
 
         # 인자로 받은 데이터프레임 ohlcv_df의 인덱스를 데이트타임으로 바꿔준다
         ohlcv_df.index = pd.to_datetime(ohlcv_df.index)
-        periodic_close = ohlcv_df.resample(period).last() # reference: http://benalexkeen.com/resampling-time-series-data-with-pandas/
+        periodic_close = ohlcv_df.resample(
+            period).last()  # reference: http://benalexkeen.com/resampling-time-series-data-with-pandas/
 
         ##########################################
         ##### 6개월 resample은 따로 처리 필요!!! ######
@@ -84,24 +82,22 @@ class RMS:
         periodic_close.dropna(how='all', inplace=True)
         return periodic_close
 
-
     ##### EAA (Elastic Asset Allocation) 알고리즘에 필요한 계산 #####
 
-
-    #*** UPDATE: 20180815 ***#
+    # *** UPDATE: 20180815 ***#
     def dual_momentum(self, data):
         # data (pd.DataFrame) --> 한 달을 주기로 resample된 데이터프레임
         # resample 처리가 안 된 상태라면, set_periodic_close() 메소드 사용
         for i in range(1, 13):
-            momentum = (data - data.shift(i))/data.shift(i) # 단순 수익률: (P(t) - P(t-i))/P(t-i), P = 종가
+            momentum = (data - data.shift(i)) / data.shift(i)  # 단순 수익률: (P(t) - P(t-i))/P(t-i), P = 종가
             if i == 1:
                 temp = momentum
             else:
                 temp += momentum
-        mom = temp/12 # 위에서 구한 모든 모멘텀값을 더한 후 12로 나눔 (12개월 평균 모멘텀이 된다)
-        return mom.fillna(0) # nan은 0으로 처리
+        mom = temp / 12  # 위에서 구한 모든 모멘텀값을 더한 후 12로 나눔 (12개월 평균 모멘텀이 된다)
+        return mom.fillna(0)  # nan은 0으로 처리
 
-    #*** UPDATE: 20180815 ***#
+    # *** UPDATE: 20180815 ***#
     def volatility(self, returns_data, window=12):
         # 변동성 계산
         # 보통 변동성 계산은 일년을 주기로 계산한다
@@ -111,13 +107,13 @@ class RMS:
         # (3개월/분기별로 resample 되었다면 window는 4로 잡는다)
         return returns_df.rolling(window=window).std().fillna(0)
 
-    #*** UPDATE: 20180816 ***#
+    # *** UPDATE: 20180816 ***#
     def correlation(self, returns_data, window=12):
-        corr = returns_df.copy() # data를 복사한다
-        corr['Eq_weight'] = list(pd.DataFrame(corr.values.T*(1.0/len(corr.columns))).sum())
+        corr = returns_df.copy()  # data를 복사한다
+        corr['Eq_weight'] = list(pd.DataFrame(corr.values.T * (1.0 / len(corr.columns))).sum())
         return corr.rolling(window=window).corr().ix[-1][:-1]
 
-    #*** UPDATE: 20180816 ***#
+    # *** UPDATE: 20180816 ***#
     def EAA(self, mom, vol, corr, portfolio_type):
         # 1단계: 현금 투자 금액을 계산한다
         if portfolio_type == 'S':
@@ -134,15 +130,14 @@ class RMS:
         stock_amount = stock_amount * eaa_amount / eaa_amount.sum()
         return cash_amount, stock_amount
 
-
     ##### 알고리즘 백테스팅(backtesting)에 필요한 계산 #####
 
-    #*** UPDATE: 20180816 ***#
+    # *** UPDATE: 20180816 ***#
     def calc_port_returns(self, ohlcv_df):
         # OHLCV 데이터를 받아서 수익률 데이터로 변환해준다
         return ohlcv_df.pct_change()
 
-    #*** UPDATE: 20180816 ***#
+    # *** UPDATE: 20180816 ***#
     def retrieve_weights(self, ratio_dict):
         stocks = list()
         weights = list()
@@ -153,7 +148,7 @@ class RMS:
         weights = pd.Series(weights, index=stocks)
         return weights
 
-    #*** UPDATE: 20180816 ***#
+    # *** UPDATE: 20180816 ***#
     def backtest_portfolio(self, weights, returns):
         W_R = weights * returns
         WR = W_R.sum(axis=1)
@@ -162,8 +157,12 @@ class RMS:
         yield_curve = (WR + 1).cumprod()
         return WR, port_ret, port_var, yield_curve
 
-    #*** UPDATE: 20180816 ***#
+    # *** UPDATE: 20180816 ***#
     def benchmark_info(self):
+        data = self.data
+        data.request('bm')
+        print(data)
+
         from stockapi.models import BM
         BM_qs = BM.objects.filter(name='KOSPI').distinct('date')
         BM_data = list(BM_qs.exclude(date__lte=self.filter_date).values('date', 'index'))
@@ -176,7 +175,7 @@ class RMS:
         W = pd.Series([1], index=['Benchmark'])
         return self._backtest_port(W, BM_R)
 
-    #*** UPDATE: 20180816 ***#
+    # *** UPDATE: 20180816 ***#
     def portfolio_info(self, weights, returns):
         ### BM_wr: Benchmark Weight * Return
         ### BM_r: Benchmark Return
@@ -186,16 +185,16 @@ class RMS:
         wr, r, v, yc = self.backtest_portfolio(weights, returns)
 
         sharpe_ratio = self.sharpe_ratio(r, BM_r, v)
-        yield_r = yc.ix[len(yc)-1] - 1
+        yield_r = yc.ix[len(yc) - 1] - 1
         bt = pd.concat([yc, BM_yc], axis=1)
         bt.columns = ['Portfolio', 'Benchmark']
         return r, v, sharpe_ratio, yield_r, bt
 
-    #*** UPDATE: 20180816 ***#
+    # *** UPDATE: 20180816 ***#
     def sharpe_ratio(self, r, bm_r, v):
-        return (r - bm_r)/v
+        return (r - bm_r) / v
 
-    #*** UPDATE: 20180822 ***#
+    # *** UPDATE: 20180822 ***#
     def backtest_EAA(self):
         self._set_monthly_close()
         mom = self._dual_momentum()
@@ -204,7 +203,7 @@ class RMS:
         returns_list = []
         for date in range(len(self.R)):
             cash_amt, stock_amt = self.EAA(mom.ix[date], vol.ix[date], corr)
-            returns = ( self.R.ix[date] * (stock_amt * (1 - cash_amt)) ).fillna(0)
+            returns = (self.R.ix[date] * (stock_amt * (1 - cash_amt))).fillna(0)
             returns_list.append(returns.sum())
         weights = []
         for ticker in self.settings['ticker_list']:
@@ -226,12 +225,12 @@ class RMS:
         bt.columns = ['Portfolio', 'Benchmark']
         return r, v, sr, yield_r, bt, weights
 
-    #*** UPDATE: 20180816 ***#
+    # *** UPDATE: 20180816 ***#
     def change_backtest_result_format(self, backtest_result):
         new_data = dict()
         for column in bt.columns:
             ret_data = list()
-            dates = bt.index.astype(np.int64)//1000000 # pandas timestamp returns in microseconds, divide by million
+            dates = bt.index.astype(np.int64) // 1000000  # pandas timestamp returns in microseconds, divide by million
             for i in range(len(bt)):
                 data = bt.ix[i]
                 date = dates[i]
@@ -241,12 +240,12 @@ class RMS:
 
     ##### 종목 점수 매기는데 필요한 계산 #####
 
-    #*** UPDATE: 20180822 ***#
+    # *** UPDATE: 20180822 ***#
     @timeit
     def score_data(self):
         # 우선, 코스피, 코스닥 모든 종목의 데이터를 불러온다
-        data = Data('rms')
-        data.request('close') # self.data.kospi_cls_df, self.data.kosdaq_cls_df
+        data = self.data
+        data.request('close')  # self.data.kospi_cls_df, self.data.kosdaq_cls_df
 
         # 데이터를 사용하기 쉽도록 함수 로컬 변수로 바꾼다
         kospi_cls_df = data.kospi_cls_df
@@ -258,7 +257,7 @@ class RMS:
         # 1 단계: 코스피, 코스닥을 나눠서 거래대금 df를 만든다 --> 거래대금: 종가 * 거래량
         # 거래대금 정보를 만드는 이유는 거래대금으로 어떤 종목이 가장 많이 거래되고 있는지 파악 가능하기 때문이다
         ### kp_vol_prc에서 vol_prc란: volume in price values를 뜻함
-        kp_vol_prc = (kospi_cls_df * kospi_vol_df).iloc[-1:] # 마지막 줄만 가져온다 (최근 거래대금)
+        kp_vol_prc = (kospi_cls_df * kospi_vol_df).iloc[-1:]  # 마지막 줄만 가져온다 (최근 거래대금)
         kd_vol_prc = (kosdaq_cls_df * kosdaq_vol_df).iloc[-1:]
         # print('1 단계 완료')
         # print(kp_vol_prc)
@@ -293,7 +292,7 @@ class RMS:
         kd_mom = self.dual_momentum(kosdaq)
 
         # 다음, 변동성을 계산한다
-        kp_volt = self.volatility(kospi, 200) # resample이 안 된 상태이다
+        kp_volt = self.volatility(kospi, 200)  # resample이 안 된 상태이다
         kd_volt = self.volatility(kosdaq, 200)
 
         # 마지막으로 벤치마크 대비 종목별 상관관계를 계산한다
