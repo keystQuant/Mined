@@ -25,17 +25,27 @@ class MarketSignalTestCase(TestCase):
         self.assertIn('kosdaq_change', result)
         self.assertIn('kosdaq_rate', result)
 
-    def test_calc_size_info(self):
-        p = MarketSignalProcessor('CALC_SIZE_INFO')
-
-    def test_calc_style_info(self):
-        p = MarketSignalProcessor('CALC_STYLE_INFO')
-
-    def test_calc_industry_info(self):
-        p = MarketSignalProcessor('CALC_INDUSTRY_INFO')
-
-    def test_make_rank_data(self):
-        p = MarketSignalProcessor('MAKE_RANK_DATA')
-
-    def test_emit_buysell_signal(self):
-        p = MarketSignalProcessor('EMIT_BUYSELL_SIGNAL')
+    # def test_calc_size_info(self):
+    #     p = MarketSignalProcessor('CALC_SIZE_INFO')
+    #     result = p.reduce()
+    #     self.assertIsNotNone(result)
+    #
+    # def test_calc_style_info(self):
+    #     p = MarketSignalProcessor('CALC_STYLE_INFO')
+    #     result = p.reduce()
+    #     self.assertIsNotNone(result)
+    #
+    # def test_calc_industry_info(self):
+    #     p = MarketSignalProcessor('CALC_INDUSTRY_INFO')
+    #     result = p.reduce()
+    #     self.assertIsNotNone(result)
+    #
+    # def test_make_rank_data(self):
+    #     p = MarketSignalProcessor('MAKE_RANK_DATA')
+    #     result = p.reduce()
+    #     self.assertIsNotNone(result)
+    #
+    # def test_emit_buysell_signal(self):
+    #     p = MarketSignalProcessor('EMIT_BUYSELL_SIGNAL')
+    #     result = p.reduce()
+    #     self.assertIsNotNone(result)

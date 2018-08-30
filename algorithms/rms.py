@@ -12,7 +12,6 @@ import numpy as np
 import pandas as pd
 
 from algorithms.data import Data
-from algorithms.utils import timeit
 
 
 class RMSProcessor:
@@ -105,11 +104,11 @@ class RMSProcessor:
         # (데이터가 일일 데이터면 보통 window를 200으로 잡는다)
         # (데이터가 일주일로 resample되었다면, window는 48을 잡는다)
         # (3개월/분기별로 resample 되었다면 window는 4로 잡는다)
-        return returns_df.rolling(window=window).std().fillna(0)
+        return returns_data.rolling(window=window).std().fillna(0)
 
     # *** UPDATE: 20180816 ***#
     def correlation(self, returns_data, window=12):
-        corr = returns_df.copy()  # data를 복사한다
+        corr = returns_data.copy()  # data를 복사한다
         corr['Eq_weight'] = list(pd.DataFrame(corr.values.T * (1.0 / len(corr.columns))).sum())
         return corr.rolling(window=window).corr().ix[-1][:-1]
 
@@ -159,9 +158,8 @@ class RMSProcessor:
 
     # *** UPDATE: 20180816 ***#
     def benchmark_info(self):
-        data = self.data
-        data.request('bm')
-        print(data)
+        ms_data = Data('marketsignal')
+        ms_data.request('bm')
 
         from stockapi.models import BM
         BM_qs = BM.objects.filter(name='KOSPI').distinct('date')
@@ -241,38 +239,29 @@ class RMSProcessor:
     ##### 종목 점수 매기는데 필요한 계산 #####
 
     # *** UPDATE: 20180822 ***#
-    @timeit
     def score_data(self):
-        # 우선, 코스피, 코스닥 모든 종목의 데이터를 불러온다
         data = self.data
-        data.request('close')  # self.data.kospi_cls_df, self.data.kosdaq_cls_df
+        data.request('close')
 
-        # 데이터를 사용하기 쉽도록 함수 로컬 변수로 바꾼다
         kospi_cls_df = data.kospi_cls_df
         kospi_vol_df = data.kospi_vol_df
-
         kosdaq_cls_df = data.kosdaq_cls_df
         kosdaq_vol_df = data.kosdaq_vol_df
 
         # 1 단계: 코스피, 코스닥을 나눠서 거래대금 df를 만든다 --> 거래대금: 종가 * 거래량
         # 거래대금 정보를 만드는 이유는 거래대금으로 어떤 종목이 가장 많이 거래되고 있는지 파악 가능하기 때문이다
         ### kp_vol_prc에서 vol_prc란: volume in price values를 뜻함
-        kp_vol_prc = (kospi_cls_df * kospi_vol_df).iloc[-1:]  # 마지막 줄만 가져온다 (최근 거래대금)
-        kd_vol_prc = (kosdaq_cls_df * kosdaq_vol_df).iloc[-1:]
-        # print('1 단계 완료')
-        # print(kp_vol_prc)
-        # print(kd_vol_prc)
+        kp_vol_prc = kospi_cls_df * kospi_vol_df
+        kd_vol_prc = kosdaq_cls_df * kosdaq_vol_df
 
         # 2 단계: 종가 데이터를 수익률 데이터로 바꾼다 (수익률 = return = 변화율)
         kospi_ret = kospi_cls_df.pct_change()
         kosdaq_ret = kosdaq_cls_df.pct_change()
-        # print('2 단계 완료')
 
         # 3 단계: 벤치마크 데이터를 하나씩 추가한다 (보편적으로 사용되는 벤치마크로 코스피 지수를 사용)
         # 데이터를 쉽게 가져오기 위해서 marketsignal 데이터 객체를 사용한다
         ms_data = Data('marketsignal')
         ms_data.request('bm')
-        # 이제 ms_data.kospi_index와 ms_data.kosdaq_index를 사용하는 것이 가능하다
         benchmark = ms_data.kospi_index
         benchmark = benchmark[['date', 'cls_prc']]
         benchmark.set_index('date', inplace=True)
@@ -281,10 +270,8 @@ class RMSProcessor:
         benchmark = benchmark.pct_change()
         kospi = pd.concat([kospi_ret, benchmark], axis=1, sort=True)
         kosdaq = pd.concat([kosdaq_ret, benchmark], axis=1, sort=True)
-        # fillna하여 빠진 데이터는 깔끔하게 0으로 채운다
         kospi.fillna(0, inplace=True)
         kosdaq.fillna(0, inplace=True)
-        # print('3 단계 완료')
 
         # 4 단계: 거래대금, 모멘텀, 변동성, 상관관계 점수를 매긴다
         # 우선, 모멘텀을 계산한다
@@ -295,9 +282,9 @@ class RMSProcessor:
         kp_volt = self.volatility(kospi, 200)  # resample이 안 된 상태이다
         kd_volt = self.volatility(kosdaq, 200)
 
-        # 마지막으로 벤치마크 대비 종목별 상관관계를 계산한다
-        kp_cor = self.correlation(kospi, 200)
-        kd_cor = self.correlation(kosdaq, 200)
+        # # 마지막으로 벤치마크 대비 종목별 상관관계를 계산한다
+        # kp_cor = self.correlation(kospi, 200)
+        # kd_cor = self.correlation(kosdaq, 200)
 
         ### kp_vol_prc, kp_mom, kp_volt, kp_cor, etc. 의 랭킹을 매긴다
         ### 랭킹은: 그 날짜별 모든 종목의 랭킹이다
@@ -320,15 +307,17 @@ class RMSProcessor:
         kd_volt_score = kd_volt.rank(ascending=True)
         kd_volt_score = (kd_volt_score / kd_volt_score.max()) * 100
 
-        kp_cor_score = kp_cor.rank(ascending=False)
-        kp_cor_score = (kp_cor_score / kp_cor_score.max()) * 100
-        kd_cor_score = kd_cor.rank(ascending=False)
-        kd_cor_score = (kd_cor_score / kd_cor_score.max()) * 100
+        # kp_cor_score = kp_cor.rank(ascending=False)
+        # kp_cor_score = (kp_cor_score / kp_cor_score.max()) * 100
+        # kd_cor_score = kd_cor.rank(ascending=False)
+        # kd_cor_score = (kd_cor_score / kd_cor_score.max()) * 100
 
         # 5 단계: 토탈 점수를 계산한다
         ### 토탈 점수는 심플하게: (거래대금 점수 + 모멘텀 점수 + 변동성 점수 + 상관관계 점수) / 4 로 계산한다
-        kp_total_score = (kp_vol_score + kp_mom_score + kp_volt_score + kp_cor_score) // 4
-        kd_total_score = (kd_vol_score + kd_mom_score + kd_volt_score + kd_cor_score) // 4
+        # kp_total_score = (kp_vol_score + kp_mom_score + kp_volt_score + kp_cor_score) // 4
+        # kd_total_score = (kd_vol_score + kd_mom_score + kd_volt_score + kd_cor_score) // 4
+        kp_total_score = (kp_vol_score + kp_mom_score + kp_volt_score) // 3
+        kd_total_score = (kd_vol_score + kd_mom_score + kd_volt_score) // 3
 
         # 계산한 토탈 점수 데이터 두 개를 리턴한다
         return kp_total_score, kd_total_score
