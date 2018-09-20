@@ -86,7 +86,11 @@ class PortfolioProcessor(object):
     # *** UPDATE: 20180915 ***#
     def get_recent_stock_close_price(self, ticker):
         # 종목의 코드를 인자로 받아서 그 종목의 최근 종가를 리턴하는 메소드
-        print(self.ohlcv_inst_list)
+        for o in self.ohlcv_inst_list:
+            tmp = o.iloc[-1]
+            if tmp['code'] == ticker:
+                return int(tmp['cls_prc'])
+        return None
 
     # *** UPDATE: 20180915 ***#
     def initial_distribution(self):
@@ -94,35 +98,22 @@ class PortfolioProcessor(object):
         port = self.port_params
 
         for stock in port['stocks']:
-            code = stock.code.code
-            ohlcv = self.get_recent_stock_close_price(code)  # 제일 최근 종가 가져오기
-            if ohlcv.exists():
-                ohlcv_inst = ohlcv.first()  # get the most recent ohlcv instance
-                ticker_inst = Ticker.objects.filter(code=ohlcv_inst.code).order_by('-date').first()
-
-                self.ohlcv_inst_list.append(ohlcv_inst)
-
-                name = ticker_inst.name
-                date = ohlcv_inst.date
-                close_price = int(ohlcv_inst.close_price)
-                stock_data = {
-                    'name': name,
-                    'date': date,
-                    'price': close_price
-                }
-                self.ratio_dict[code] = stock_data
-                capital_per_stock = port['capital_per_stock']
-                if close_price < capital_per_stock:
-                    stock_num = capital_per_stock // close_price
-                    invested = int(stock_num * close_price)
-                    self.ratio_dict[code]['invested'] = invested
-                    self.ratio_dict[code]['buy_num'] = stock_num
-                    self.ratio_dict['cash'] += (capital_per_stock - invested)
-                else:
-                    self.ratio_dict[code]['invested'] = 0
-                    self.ratio_dict[code]['buy_num'] = 0
+            close_price = self.get_recent_stock_close_price(stock)
+            stock_data = {
+                'name': stock,
+                'price': close_price
+            }
+            self.ratio_dict[stock] = stock_data
+            capital_per_stock = port['capital_per_stock']
+            if close_price < capital_per_stock:
+                stock_num = capital_per_stock // close_price
+                invested = int(stock_num * close_price)
+                self.ratio_dict[stock]['invested'] = invested
+                self.ratio_dict[stock]['buy_num'] = stock_num
+                self.ratio_dict['cash'] += (capital_per_stock - invested)
             else:
-                continue
+                self.ratio_dict[stock]['invested'] = 0
+                self.ratio_dict[stock]['buy_num'] = 0
 
     # *** UPDATE: 20180915 ***#
     def redistribute(self):
