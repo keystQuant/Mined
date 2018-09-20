@@ -96,7 +96,6 @@ class PortfolioProcessor(object):
     def initial_distribution(self):
         # 초기에 자본을 분배할 때는 모든 종목에 동일한 비중의 자본금을 나누는 형식으로 진행한다
         port = self.port_params
-
         for stock in port['stocks']:
             close_price = self.get_recent_stock_close_price(stock)
             stock_data = {
@@ -118,31 +117,26 @@ class PortfolioProcessor(object):
     # *** UPDATE: 20180915 ***#
     def redistribute(self):
         left_over_capital = self.ratio_dict['cash']
-        ohlcv_inst_list = self.ohlcv_inst_list
         redistribute = left_over_capital > 0
         while redistribute:
-            extra_buy = list(filter(lambda x: x.close_price < left_over_capital, ohlcv_inst_list))
+            extra_buy = list(
+                filter(lambda x: x[0] != 'cash' and x[1]['price'] < left_over_capital, self.ratio_dict.items()))
             if len(extra_buy) == 0:
-                redistribute = False
-                continue
+                break
             extra_capital_per_stock = left_over_capital // len(extra_buy)
-            extra_buy_num = list(map(lambda x: extra_capital_per_stock // x.close_price, extra_buy))
+            extra_buy_num = list(map(lambda x: extra_capital_per_stock // x[1]['price'], extra_buy))
             if sum(extra_buy_num) == 0:
-                redistribute = False
-                continue
-            close_price_list = [ohlcv.close_price for ohlcv in extra_buy]
+                break
+            close_price_list = [x[1]['price'] for x in extra_buy]
             reset_left_over = int(left_over_capital - sum(map(lambda x, y: x * y, extra_buy_num, close_price_list)))
-            extra_stocks = [ohlcv.code for ohlcv in extra_buy]
+            extra_stocks = [x[0] for x in extra_buy]
             for i in range(len(extra_stocks)):
                 extra_invested = extra_buy_num[i] * close_price_list[i]
                 self.ratio_dict[extra_stocks[i]]['invested'] += int(extra_invested)
                 self.ratio_dict[extra_stocks[i]]['buy_num'] += int(extra_buy_num[i])
             self.ratio_dict['cash'] = reset_left_over
-            ohlcv_inst_list = extra_buy
             left_over_capital = reset_left_over
         for key, val in self.ratio_dict.items():
             if key != 'cash':
                 stock_ratio = val['invested'] / self.port_params['capital']
                 self.ratio_dict[key]['ratio'] = float(format(round(stock_ratio, 4), '.4f'))
-        pd_inst = PortfolioDiagnosis(portfolio=self.port_params['portfolio'], ratio=self.ratio_dict)
-        pd_inst.save()

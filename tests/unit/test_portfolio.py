@@ -32,4 +32,15 @@ class PortfolioTestCase(TestCase):
         self.assertIn('005930', result)
 
     def test_redistribute(self):
-        pass
+        p = PortfolioProcessor('initial_distribution', 'S', ['000020', '000030', '005930'], 10000000)
+        p.initial_distribution()
+        p.redistribute()
+        result = p.ratio_dict
+        self.assertIsNotNone(result)
+        self.assertIsInstance(result, dict)
+        self.assertIn('000020', result)
+        self.assertIn('000030', result)
+        self.assertIn('005930', result)
+        self.assertIn('ratio', result['000020'])
+        self.assertIn('ratio', result['000030'])
+        self.assertIn('ratio', result['005930'])
