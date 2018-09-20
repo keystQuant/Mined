@@ -8,9 +8,6 @@ Mined.
 feat. peepee
 with love...
 '''
-import numpy as np
-import pandas as pd
-
 from algorithms.data import Data
 
 

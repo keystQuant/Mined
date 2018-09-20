@@ -15,10 +15,10 @@ from algorithms.rms import RMSProcessor
 
 
 class RMSTestCase(TestCase):
-    # def test_backtest_EAA(self):
-    #     p = RMSProcessor('BACKTEST_EAA')
-    #     result = p.reduce()
-    #     self.assertIsNotNone(result)
+    def test_backtest_EAA(self):
+        p = RMSProcessor('BACKTEST_EAA')
+        result = p.reduce()
+        self.assertIsNotNone(result)
 
     def test_score_data(self):
         p = RMSProcessor('SCORE_DATA')
