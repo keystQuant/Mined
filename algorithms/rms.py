@@ -12,14 +12,14 @@ import numpy as np
 import pandas as pd
 
 from algorithms.data import Data
+from algorithms.utils import score
 
 
 class RMSProcessor:
 
-    # *** UPDATE: 20180824 ***#
+    # *** UPDATE: 20180915 ***#
     def __init__(self, taskname, ratio_dict=None):
         self.taskname = taskname.lower()
-        self.data = Data('rms')
 
         ### ratio_dict (dict) --> algorithms.portfolio.PortfolioProcessor가 redistribute하고
         ###                       최종적으로 생기는 ratio_dict와 같은 형식
@@ -36,6 +36,8 @@ class RMSProcessor:
             'ohlcv_list': list()
         }
 
+        self.set_port_analysis_settings()
+
     # *** UPDATE: 20180824 ***#
     def reduce(self):
         taskname = self.taskname
@@ -46,17 +48,12 @@ class RMSProcessor:
         else:
             return {'state': '{} 태스크는 없습니다'.format(taskname)}
 
-    # *** UPDATE: 20180815 ***#
+    # *** UPDATE: 20180915 ***#
     def set_port_analysis_settings(self):
-        ### 포트폴리오 분석, 최적 포트폴리오 계산용 옵션이다
-        ### mode == 'portfolio' or mode == 'recommendation'
+        if self.ratio_dict:
+            self.settings['ticker_list'] = [ticker for ticker in self.ratio_dict.keys() if ticker != 'cash']
 
-        # ticker_list 리스트 채우기
-        self.settings['ticker_list'] = [ticker for ticker in self.ratio_dict.keys() if ticker != 'cash']
-        ticker_list = self.settings['ticker_list']
-
-        # Data 인스턴스 생성
-        self.data = Data('rms', ticker_list)  # Data 인스턴스 생성자 stocks 인자를 넣어준다
+        self.data = Data('rms', self.settings['ticker_list'])
 
         # ohlcv_list 리스트 생성하기
         print('create ohlcv_list with Data instance')
@@ -82,35 +79,6 @@ class RMSProcessor:
         return periodic_close
 
     ##### EAA (Elastic Asset Allocation) 알고리즘에 필요한 계산 #####
-
-    # *** UPDATE: 20180815 ***#
-    def dual_momentum(self, data):
-        # data (pd.DataFrame) --> 한 달을 주기로 resample된 데이터프레임
-        # resample 처리가 안 된 상태라면, set_periodic_close() 메소드 사용
-        for i in range(1, 13):
-            momentum = (data - data.shift(i)) / data.shift(i)  # 단순 수익률: (P(t) - P(t-i))/P(t-i), P = 종가
-            if i == 1:
-                temp = momentum
-            else:
-                temp += momentum
-        mom = temp / 12  # 위에서 구한 모든 모멘텀값을 더한 후 12로 나눔 (12개월 평균 모멘텀이 된다)
-        return mom.fillna(0)  # nan은 0으로 처리
-
-    # *** UPDATE: 20180815 ***#
-    def volatility(self, returns_data, window=12):
-        # 변동성 계산
-        # 보통 변동성 계산은 일년을 주기로 계산한다
-        # 그래서 returns_data 월별로 resample된거라면 window를 12로 잡는다
-        # (데이터가 일일 데이터면 보통 window를 200으로 잡는다)
-        # (데이터가 일주일로 resample되었다면, window는 48을 잡는다)
-        # (3개월/분기별로 resample 되었다면 window는 4로 잡는다)
-        return returns_data.rolling(window=window).std().fillna(0)
-
-    # *** UPDATE: 20180816 ***#
-    def correlation(self, returns_data, window=12):
-        corr = returns_data.copy()  # data를 복사한다
-        corr['Eq_weight'] = list(pd.DataFrame(corr.values.T * (1.0 / len(corr.columns))).sum())
-        return corr.rolling(window=window).corr().ix[-1][:-1]
 
     # *** UPDATE: 20180816 ***#
     def EAA(self, mom, vol, corr, portfolio_type):
@@ -238,86 +206,12 @@ class RMSProcessor:
 
     ##### 종목 점수 매기는데 필요한 계산 #####
 
-    # *** UPDATE: 20180822 ***#
+    # *** UPDATE: 20180915 ***#
     def score_data(self):
         data = self.data
         data.request('close')
 
-        kospi_cls_df = data.kospi_cls_df
-        kospi_vol_df = data.kospi_vol_df
-        kosdaq_cls_df = data.kosdaq_cls_df
-        kosdaq_vol_df = data.kosdaq_vol_df
+        kp_total_score = score(data.kospi_cls_df, data.kospi_vol_df, include_correlation=False)
+        kd_total_score = score(data.kosdaq_cls_df, data.kosdaq_vol_df, include_correlation=False)
 
-        # 1 단계: 코스피, 코스닥을 나눠서 거래대금 df를 만든다 --> 거래대금: 종가 * 거래량
-        # 거래대금 정보를 만드는 이유는 거래대금으로 어떤 종목이 가장 많이 거래되고 있는지 파악 가능하기 때문이다
-        ### kp_vol_prc에서 vol_prc란: volume in price values를 뜻함
-        kp_vol_prc = kospi_cls_df * kospi_vol_df
-        kd_vol_prc = kosdaq_cls_df * kosdaq_vol_df
-
-        # 2 단계: 종가 데이터를 수익률 데이터로 바꾼다 (수익률 = return = 변화율)
-        kospi_ret = kospi_cls_df.pct_change()
-        kosdaq_ret = kosdaq_cls_df.pct_change()
-
-        # 3 단계: 벤치마크 데이터를 하나씩 추가한다 (보편적으로 사용되는 벤치마크로 코스피 지수를 사용)
-        # 데이터를 쉽게 가져오기 위해서 marketsignal 데이터 객체를 사용한다
-        ms_data = Data('marketsignal')
-        ms_data.request('bm')
-        benchmark = ms_data.kospi_index
-        benchmark = benchmark[['date', 'cls_prc']]
-        benchmark.set_index('date', inplace=True)
-        benchmark.index = pd.to_datetime(benchmark.index)
-        benchmark.rename(columns={'cls_prc': 'Benchmark'}, inplace=True)
-        benchmark = benchmark.pct_change()
-        kospi = pd.concat([kospi_ret, benchmark], axis=1, sort=True)
-        kosdaq = pd.concat([kosdaq_ret, benchmark], axis=1, sort=True)
-        kospi.fillna(0, inplace=True)
-        kosdaq.fillna(0, inplace=True)
-
-        # 4 단계: 거래대금, 모멘텀, 변동성, 상관관계 점수를 매긴다
-        # 우선, 모멘텀을 계산한다
-        kp_mom = self.dual_momentum(kospi)
-        kd_mom = self.dual_momentum(kosdaq)
-
-        # 다음, 변동성을 계산한다
-        kp_volt = self.volatility(kospi, 200)  # resample이 안 된 상태이다
-        kd_volt = self.volatility(kosdaq, 200)
-
-        # # 마지막으로 벤치마크 대비 종목별 상관관계를 계산한다
-        # kp_cor = self.correlation(kospi, 200)
-        # kd_cor = self.correlation(kosdaq, 200)
-
-        ### kp_vol_prc, kp_mom, kp_volt, kp_cor, etc. 의 랭킹을 매긴다
-        ### 랭킹은: 그 날짜별 모든 종목의 랭킹이다
-        ### vol_prc, mom은 숫자가 클수록 좋고,
-        ### volt, cor은 작을수록 좋다
-        ### 그리고 랭킹을 가지고 점수를 매긴다
-        ### --> 점수는: (종목 랭킹 / 종목수) * 100 이다
-        kp_vol_score = kp_vol_prc.rank(ascending=True)
-        kp_vol_score = (kp_vol_score / kp_vol_score.max()) * 100
-        kd_vol_score = kd_vol_prc.rank(ascending=True)
-        kd_vol_score = (kd_vol_score / kd_vol_score.max()) * 100
-
-        kp_mom_score = kp_mom.rank(ascending=True)
-        kp_mom_score = (kp_mom_score / kp_mom_score.max()) * 100
-        kd_mom_score = kd_mom.rank(ascending=True)
-        kd_mom_score = (kd_mom_score / kd_mom_score.max()) * 100
-
-        kp_volt_score = kp_volt.rank(ascending=False)
-        kp_volt_score = (kp_volt_score / kp_volt_score.max()) * 100
-        kd_volt_score = kd_volt.rank(ascending=True)
-        kd_volt_score = (kd_volt_score / kd_volt_score.max()) * 100
-
-        # kp_cor_score = kp_cor.rank(ascending=False)
-        # kp_cor_score = (kp_cor_score / kp_cor_score.max()) * 100
-        # kd_cor_score = kd_cor.rank(ascending=False)
-        # kd_cor_score = (kd_cor_score / kd_cor_score.max()) * 100
-
-        # 5 단계: 토탈 점수를 계산한다
-        ### 토탈 점수는 심플하게: (거래대금 점수 + 모멘텀 점수 + 변동성 점수 + 상관관계 점수) / 4 로 계산한다
-        # kp_total_score = (kp_vol_score + kp_mom_score + kp_volt_score + kp_cor_score) // 4
-        # kd_total_score = (kd_vol_score + kd_mom_score + kd_volt_score + kd_cor_score) // 4
-        kp_total_score = (kp_vol_score + kp_mom_score + kp_volt_score) // 3
-        kd_total_score = (kd_vol_score + kd_mom_score + kd_volt_score) // 3
-
-        # 계산한 토탈 점수 데이터 두 개를 리턴한다
         return kp_total_score, kd_total_score

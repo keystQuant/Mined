@@ -42,7 +42,10 @@ class TaskAPIView(APIView):
             result = task_class.reduce()
         ##### ALGO #3 #####
         elif algorithm == 'PORTFOLIO':
-            task_class = PortfolioProcessor(task)
+            portfolio_type = request.GET.get('portfolio_type')
+            stocks = request.GET.get('stocks')
+            capital = request.GET.get('capital')
+            task_class = PortfolioProcessor(task, portfolio_type, stocks, capital)
             result = task_class.reduce()
         ##### ALGO #4 #####
         elif algorithm == 'RMS':

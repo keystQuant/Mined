@@ -25,21 +25,31 @@ class MarketSignalTestCase(TestCase):
         self.assertIn('kosdaq_change', result)
         self.assertIn('kosdaq_rate', result)
 
-    # def test_calc_size_info(self):
-    #     p = MarketSignalProcessor('CALC_SIZE_INFO')
-    #     result = p.reduce()
-    #     self.assertIsNotNone(result)
-    #
-    # def test_calc_style_info(self):
-    #     p = MarketSignalProcessor('CALC_STYLE_INFO')
-    #     result = p.reduce()
-    #     self.assertIsNotNone(result)
-    #
-    # def test_calc_industry_info(self):
-    #     p = MarketSignalProcessor('CALC_INDUSTRY_INFO')
-    #     result = p.reduce()
-    #     self.assertIsNotNone(result)
-    #
+    def test_calc_size_info(self):
+        p = MarketSignalProcessor('CALC_SIZE_INFO')
+        result = p.reduce()
+        self.assertIsNotNone(result)
+        for market in ['kp', 'kd']:
+            for size in ['lg', 'md', 'sm']:
+                for kind in ['index', 'score', 'change', 'state']:
+                    self.assertIsNotNone(result['%s_%s_%s' % (market, size, kind)])
+
+    def test_calc_style_info(self):
+        p = MarketSignalProcessor('CALC_STYLE_INFO')
+        result = p.reduce()
+        self.assertIsNotNone(result)
+        for style in ['g', 'v', 'y', 'q', 's']:
+            for kind in ['index', 'score', 'change', 'state']:
+                self.assertIsNotNone(result['%s_%s' % (style, kind)])
+
+    def test_calc_industry_info(self):
+        p = MarketSignalProcessor('CALC_INDUSTRY_INFO')
+        result = p.reduce()
+        self.assertIsNotNone(result)
+        for industry in ['ind_1', 'ind_2', 'ind_3']:
+            for kind in ['name', 'index', 'score', 'change', 'state']:
+                self.assertIsNotNone(result['%s_%s' % (industry, kind)])
+
     # def test_make_rank_data(self):
     #     p = MarketSignalProcessor('MAKE_RANK_DATA')
     #     result = p.reduce()

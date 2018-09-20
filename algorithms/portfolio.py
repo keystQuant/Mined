@@ -44,7 +44,7 @@ class PortfolioProcessor(object):
 
     '''
 
-    # *** UPDATE: 20180730 ***#
+    # *** UPDATE: 20180915 ***#
     def __init__(self, taskname, portfolio_type, stocks, capital):
         ## ** 인자 설명 ** ##
         ### portfolio_type (str) --> 포트폴리오 타입은 S 혹은 CS이다. (S: Stock, CS: Cash + Stock)
@@ -71,8 +71,7 @@ class PortfolioProcessor(object):
         # 앞으로, self.ratio_dict에 다른 종목들 비중도 계산하여 업데이트해줄 것이다
 
         # Data 인스턴스를 생성하여 stocks에서 입력받은 주가 정보를 받아온다.
-        ohlcv_data_list = self.data.make_ohlcv_data()  # OHLCV 정보를 받아온다
-        self.ohlcv_inst_list = ohlcv_data_list
+        self.ohlcv_inst_list = self.data.make_ohlcv_data()
 
     # *** UPDATE: 20180824 ***#
     def reduce(self):
@@ -84,10 +83,12 @@ class PortfolioProcessor(object):
         else:
             return {'state': '{} 태스크는 없습니다'.format(taskname)}
 
+    # *** UPDATE: 20180915 ***#
     def get_recent_stock_close_price(self, ticker):
         # 종목의 코드를 인자로 받아서 그 종목의 최근 종가를 리턴하는 메소드
-        pass
+        print(self.ohlcv_inst_list)
 
+    # *** UPDATE: 20180915 ***#
     def initial_distribution(self):
         # 초기에 자본을 분배할 때는 모든 종목에 동일한 비중의 자본금을 나누는 형식으로 진행한다
         port = self.port_params
@@ -123,6 +124,7 @@ class PortfolioProcessor(object):
             else:
                 continue
 
+    # *** UPDATE: 20180915 ***#
     def redistribute(self):
         left_over_capital = self.ratio_dict['cash']
         ohlcv_inst_list = self.ohlcv_inst_list

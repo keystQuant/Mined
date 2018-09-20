@@ -9,48 +9,30 @@ feat. peepee
 with love...
 '''
 from django.utils import timezone
-
-import numpy as np
 import pandas as pd
 
 from algorithms.data import Data
+from algorithms.utils import score
 
 
 class MarketSignalProcessor:
-    '''
-
-    **설명: 마켓시그널 페이지에 들어가는 요소들을 모두 계산하여 리턴해주는 데이터 분석 엔진
-
-    **태스크:
-    1. 시장별: 코스피, 코스닥 인덱스, 전일대비 가격변화, 1D 수익률 리턴
-    2. 사이즈별: 대형주, 중형주, 소형주 인덱스, 마켓점수, 전일대비 가격변화, 1D 수익률 리턴
-    3. 스타일별: 성장주, 가치주, 배당주, 퀄리티주, 사회책임경영주 인덱스, 마켓점수, 전일대비 가격변화, 1D 수익률 리턴
-    4. 산업별: 모든 산업별 인덱스, 마켓점수, 전일대비 가격변화, 1D 수익률 리턴
-
-    '''
-
     # *** UPDATE: 20180725 ***#
     def __init__(self, taskname, today_date=None):
-        self.taskname = taskname.lower()  # 태스크 이름을 받아서 소문자로 바꾼다
+        self.taskname = taskname.lower()
 
-        # 오늘 날짜를 인자로 받고, 아무값이 들어오지 않았다면 YYYYMMDD형식으로 직접 포맷하여
-        # self.today_date로 새팅
         if today_date == None:
             self.today_date = timezone.now().strftime('%Y%m%d')
         else:
             self.today_date = today_date
 
-        # 데이터베이스 혹은 캐시에서 데이터를 가져올 수 있도록 Data 인스턴스를 만들어준다.
-        # 어떤 데이트를 필요로 하는지 알기 위해 'marketsignal'을 인자로 보내준다.
         self.data = Data('marketsignal')
 
     # *** UPDATE: 20180806 ***#
     def reduce(self):
         taskname = self.taskname
-        # 클래스 내에 태스크명과 같은 함수 이름이 있는지 확인한다.
         if hasattr(self, taskname):
-            reducer = getattr(self, taskname)  # 태스크명과 같은 메소드를 리듀서라고 부른다
-            response = reducer()  # 리듀서를 실행시키고 반환된 값을 다시 리턴한다
+            reducer = getattr(self, taskname)
+            response = reducer()
             return response
         else:
             return {'state': '{} 태스크는 없습니다'.format(taskname)}
@@ -109,7 +91,7 @@ class MarketSignalProcessor:
         return ret
 
     # *** Mined API #2 ***#
-    # *** UPDATE: 20180823 ***#
+    # *** UPDATE: 20180915 ***#
     def calc_size_info(self):
         ######################################
         ##### Calculate Size Information #####
@@ -122,158 +104,243 @@ class MarketSignalProcessor:
 
         data = self.data
         data.request('size')
-        kp_lg_cap_index = data.kp_lg_cap_index
-        kp_md_cap_index = data.kp_md_cap_index
-        kp_sm_cap_index = data.kp_sm_cap_index
-        kd_lg_cap_index = data.kd_lg_cap_index
-        kd_md_cap_index = data.kd_md_cap_index
-        kd_sm_cap_index = data.kd_sm_cap_index
 
-        # 데이터 안에 들어가는 점수 데이터는 algorithms.rms.RMS.score_data
-        # 에서 계산하는 방식을 사이즈 인덱스에 적용시켜 계산한 점수이다
+        rms_data = Data('rms')
+        rms_data.request('close')
 
-        ### 현재 RMS.score_data() 메소드는 코스피, 코스닥 종목들만 포함한 데이터를 기반으로
-        ### 데이터 분석하고 있지만, 제대로된 마켓시그널 알고리즘의 작동을 위해서는
-        ### algorithms.data.MARKET_CODES에 포함되어 있는 모든 인덱스들도 포함하여
-        ### 점수를 매겨야한다. (개발 수정 작업 필요)
-        ### --> 또, 점수를 매긴 후에 캐시로 저장을 해야 score 데이터를 빨리 리턴할 수 있다
-        data = {
-            'l_index': self.format_decimal(l_index),
-            'l_score': l_scores[0],
-            'l_change': l_scores[0] - l_scores[1],
-            'm_index': self.format_decimal(m_index),
-            'm_score': m_scores[0],
-            'm_change': m_scores[0] - m_scores[1],
-            's_index': self.format_decimal(s_index),
-            's_score': s_scores[0],
-            's_change': s_scores[0] - s_scores[1]
+        kp_data = {
+            'lg': data.kp_lg_cap_index,
+            'md': data.kp_md_cap_index,
+            'sm': data.kp_sm_cap_index
         }
-        # 대형주, 중형주, 소형주 모두 전날 대비 점수가 상승했으면,
-        # line_up이라고, 하락했으면, line_down이라고 한다
-        # 그리고 변화가 없다면, line_middle이라고 한다
-        for size in ['l', 'm', 's']:
-            if data[size + '_change'] > 0:
-                state = 'line_up'
-            elif data[size + '_change'] == 0:
-                state = 'line_middle'
-            else:
-                state = 'line_down'
-            data[size + '_state'] = state
+
+        kd_data = {
+            'lg': data.kd_lg_cap_index,
+            'md': data.kd_md_cap_index,
+            'sm': data.kd_sm_cap_index
+        }
+
+        kospi_cls_df = rms_data.kospi_cls_df.copy()
+        kospi_vol_df = rms_data.kospi_vol_df.copy()
+        kosdaq_cls_df = rms_data.kosdaq_cls_df.copy()
+        kosdaq_vol_df = rms_data.kosdaq_vol_df.copy()
+
+        for d in kp_data.items():
+            tmp = d[1][['date', 'cls_prc']]
+            tmp.set_index('date', inplace=True)
+            tmp.index = pd.to_datetime(tmp.index)
+            tmp.rename(columns={'cls_prc': d[0]}, inplace=True)
+            kospi_cls_df = pd.concat([kospi_cls_df, tmp], axis=1, sort=True)
+            tmp = d[1][['date', 'trd_qty']]
+            tmp.set_index('date', inplace=True)
+            tmp.index = pd.to_datetime(tmp.index)
+            tmp.rename(columns={'trd_qty': d[0]}, inplace=True)
+            kospi_vol_df = pd.concat([kospi_vol_df, tmp], axis=1, sort=True)
+
+        for d in kd_data.items():
+            tmp = d[1][['date', 'cls_prc']]
+            tmp.set_index('date', inplace=True)
+            tmp.index = pd.to_datetime(tmp.index)
+            tmp.rename(columns={'cls_prc': d[0]}, inplace=True)
+            kosdaq_cls_df = pd.concat([kosdaq_cls_df, tmp], axis=1, sort=True)
+            tmp = d[1][['date', 'trd_qty']]
+            tmp.set_index('date', inplace=True)
+            tmp.index = pd.to_datetime(tmp.index)
+            tmp.rename(columns={'trd_qty': d[0]}, inplace=True)
+            kosdaq_vol_df = pd.concat([kosdaq_vol_df, tmp], axis=1, sort=True)
+
+        kp_total_score = score(kospi_cls_df, kospi_vol_df, include_correlation=False)
+        kd_total_score = score(kosdaq_cls_df, kosdaq_vol_df, include_correlation=False)
+
+        data = {
+            'kp_lg_index': kospi_cls_df.iloc[-1]['lg'],
+            'kp_lg_score': kp_total_score.iloc[-1]['lg'],
+            'kp_lg_change': kp_total_score.iloc[-1]['lg'] - kp_total_score.iloc[-2]['lg'],
+            'kp_lg_state': None,
+            'kp_md_index': kospi_cls_df.iloc[-1]['md'],
+            'kp_md_score': kp_total_score.iloc[-1]['md'],
+            'kp_md_change': kp_total_score.iloc[-1]['md'] - kp_total_score.iloc[-2]['md'],
+            'kp_md_state': None,
+            'kp_sm_index': kospi_cls_df.iloc[-1]['sm'],
+            'kp_sm_score': kp_total_score.iloc[-1]['sm'],
+            'kp_sm_change': kp_total_score.iloc[-1]['sm'] - kp_total_score.iloc[-2]['sm'],
+            'kp_sm_state': None,
+            'kd_lg_index': kosdaq_cls_df.iloc[-1]['lg'],
+            'kd_lg_score': kd_total_score.iloc[-1]['lg'],
+            'kd_lg_change': kd_total_score.iloc[-1]['lg'] - kd_total_score.iloc[-2]['lg'],
+            'kd_lg_state': None,
+            'kd_md_index': kosdaq_cls_df.iloc[-1]['md'],
+            'kd_md_score': kd_total_score.iloc[-1]['md'],
+            'kd_md_change': kd_total_score.iloc[-1]['md'] - kd_total_score.iloc[-2]['md'],
+            'kd_md_state': None,
+            'kd_sm_index': kosdaq_cls_df.iloc[-1]['sm'],
+            'kd_sm_score': kd_total_score.iloc[-1]['sm'],
+            'kd_sm_change': kd_total_score.iloc[-1]['sm'] - kd_total_score.iloc[-2]['sm'],
+            'kd_sm_state': None
+        }
+
+        for market in ['kp', 'kd']:
+            for size in ['lg', 'md', 'sm']:
+                key = '%s_%s_change' % (market, size)
+                if data[key] > 0:
+                    state = 'line_up'
+                elif data[key] == 0:
+                    state = 'line_middle'
+                else:
+                    state = 'line_down'
+                data['%s_%s_state' % (market, size)] = state
+
         return data
 
     # *** Mined API #3 ***#
-    # *** UPDATE: 20180823 ***#
+    # *** UPDATE: 20180915 ***#
     def calc_style_info(self):
         #######################################
         ##### Calculate Style Information #####
         #######################################
 
-        # DESCRIPTION: 성장주, 가치주, 배당주, 퀄리티주, 사회책임경영주 인덱스, 마켓점수, 전일대비 가격변화, 1D 수익률 리턴
-        # + 추가설명: 여기서 마켓점수는 모멘턴, 변동성, 상관관계 점수를 합친 것을 말한다
-        # API ENDPOINT: /mined/api/<version>/?algorithm=MARKET&task=CALC_STYLE_INFO
-        # DATA: 대형주 인덱스(large_cap_index), 중형주 인덱스(mid_cap_index), 소형주 인덱스(small_cap_index)
+        data = self.data
+        data.request('style')
 
-        style_list = Index.objects.filter(category='ST').order_by('-date')[:4]
-        score_list = MarketScore.objects.filter(name__in=['G', 'V']).order_by('-date')[:4]
+        rms_data = Data('rms')
+        rms_data.request('close')
 
-        for style_inst in style_list:
-            index_name = style_inst.name
-            if index_name == 'G':
-                g_index = style_inst.index
-            elif index_name == 'V':
-                v_index = style_inst.index
+        style_data = {
+            'g': data.growth_index,
+            'v': data.value_index,
+            'y': data.yield_index,
+            'q': data.quality_index,
+            's': data.social_index
+        }
 
-        g_scores, v_scores = [], []
-        for score_inst in score_list:
-            index_name = score_inst.name
-            if index_name == 'G':
-                g_scores.append(score_inst.total_score)
-            elif index_name == 'V':
-                v_scores.append(score_inst.total_score)
+        cls_df = pd.concat([rms_data.kospi_cls_df, rms_data.kosdaq_cls_df], axis=1, sort=True)
+        vol_df = pd.concat([rms_data.kospi_vol_df, rms_data.kosdaq_vol_df], axis=1, sort=True)
+
+        for d in style_data.items():
+            tmp = d[1][['date', 'cls_prc']]
+            tmp.set_index('date', inplace=True)
+            tmp.index = pd.to_datetime(tmp.index)
+            tmp.rename(columns={'cls_prc': d[0]}, inplace=True)
+            cls_df = pd.concat([cls_df, tmp], axis=1, sort=True)
+            tmp = d[1][['date', 'trd_qty']]
+            tmp.set_index('date', inplace=True)
+            tmp.index = pd.to_datetime(tmp.index)
+            tmp.rename(columns={'trd_qty': d[0]}, inplace=True)
+            vol_df = pd.concat([vol_df, tmp], axis=1, sort=True)
+
+        total_score = score(cls_df, vol_df, include_correlation=False)
 
         data = {
-            'g_index': self.format_decimal(g_index),
-            'g_score': g_scores[0],
-            'g_change': g_scores[0] - g_scores[1],
-            'v_index': self.format_decimal(v_index),
-            'v_score': v_scores[0],
-            'v_change': v_scores[0] - v_scores[1]
+            'g_index': cls_df.iloc[-1]['g'],
+            'g_score': total_score.iloc[-1]['g'],
+            'g_change': total_score.iloc[-1]['g'] - total_score.iloc[-2]['g'],
+            'g_state': None,
+            'v_index': cls_df.iloc[-1]['v'],
+            'v_score': total_score.iloc[-1]['v'],
+            'v_change': total_score.iloc[-1]['v'] - total_score.iloc[-2]['v'],
+            'v_state': None,
+            'y_index': cls_df.iloc[-1]['y'],
+            'y_score': total_score.iloc[-1]['y'],
+            'y_change': total_score.iloc[-1]['y'] - total_score.iloc[-2]['y'],
+            'y_state': None,
+            'q_index': cls_df.iloc[-1]['q'],
+            'q_score': total_score.iloc[-1]['q'],
+            'q_change': total_score.iloc[-1]['q'] - total_score.iloc[-2]['q'],
+            'q_state': None,
+            's_index': cls_df.iloc[-1]['s'],
+            's_score': total_score.iloc[-1]['s'],
+            's_change': total_score.iloc[-1]['s'] - total_score.iloc[-2]['s'],
+            's_state': None
         }
-        for size in ['g', 'v']:
-            if data[size + '_change'] > 0:
+
+        for style in ['g', 'v', 'y', 'q', 's']:
+            if data[style + '_change'] > 0:
                 state = 'line_up'
-            elif data[size + '_change'] == 0:
+            elif data[style + '_change'] == 0:
                 state = 'line_middle'
             else:
                 state = 'line_down'
-            data[size + '_state'] = state
+            data[style + '_state'] = state
+
         return data
 
     # *** Mined API #4 ***#
-    # *** UPDATE: 20180823 ***#
+    # *** UPDATE: 20180915 ***#
     def calc_industry_info(self):
         ##########################################
         ##### Calculate Industry Information #####
         ##########################################
 
-        industry_qs = Index.objects.filter(category='I')
-        last_date = industry_qs.order_by('-date').first().date
-        ranked_index = [data.name for data in industry_qs.filter(date=last_date).order_by('-index')[:3]]
-        if '' in ranked_index:
-            ranked_index = [data.name for data in industry_qs.filter(date=last_date).order_by('-index')[:4]]
-            ranked_index.remove('')
+        data = self.data
+        data.request('industry')
 
-        industry_list = industry_qs.filter(name__in=ranked_index).order_by('-date')[:3]
-        score_list = MarketScore.objects.filter(name__in=ranked_index).order_by('-date')[:6]
+        rms_data = Data('rms')
+        rms_data.request('close')
 
-        for industry_inst in industry_list:
-            index_name = industry_inst.name
-            if index_name == ranked_index[0]:
-                ind_1_index = industry_inst.name
-            elif index_name == ranked_index[1]:
-                ind_2_index = industry_inst.name
-            elif index_name == ranked_index[2]:
-                ind_3_index = industry_inst.name
+        ranked_industry = [k for (k, v) in sorted(data.industry_data.items(),
+                                                  key=lambda x: x[1]['cls_prc'].iloc[-1],
+                                                  reverse=True)][:3]
 
-        ind_1_scores, ind_2_scores, ind_3_scores = [], [], []
-        for score_inst in score_list:
-            index_name = score_inst.name
-            if index_name == ranked_index[0]:
-                ind_1_scores.append(score_inst.total_score)
-            elif index_name == ranked_index[1]:
-                ind_2_scores.append(score_inst.total_score)
-            elif index_name == ranked_index[2]:
-                ind_3_scores.append(score_inst.total_score)
+        industry_data = {
+            'ind_1': data.industry_data[ranked_industry[0]],
+            'ind_2': data.industry_data[ranked_industry[1]],
+            'ind_3': data.industry_data[ranked_industry[2]]
+        }
+
+        cls_df = pd.concat([rms_data.kospi_cls_df, rms_data.kosdaq_cls_df], axis=1, sort=True)
+        vol_df = pd.concat([rms_data.kospi_vol_df, rms_data.kosdaq_vol_df], axis=1, sort=True)
+
+        for d in industry_data.items():
+            tmp = d[1][['date', 'cls_prc']]
+            tmp.set_index('date', inplace=True)
+            tmp.index = pd.to_datetime(tmp.index)
+            tmp.rename(columns={'cls_prc': d[0]}, inplace=True)
+            cls_df = pd.concat([cls_df, tmp], axis=1, sort=True)
+            tmp = d[1][['date', 'trd_qty']]
+            tmp.set_index('date', inplace=True)
+            tmp.index = pd.to_datetime(tmp.index)
+            tmp.rename(columns={'trd_qty': d[0]}, inplace=True)
+            vol_df = pd.concat([vol_df, tmp], axis=1, sort=True)
+
+        total_score = score(cls_df, vol_df, include_correlation=False)
 
         data = {
-            'ind_1_index': ind_1_index,
-            'ind_1_score': ind_1_scores[0],
-            'ind_1_change': ind_1_scores[0] - ind_1_scores[1],
-            'ind_2_index': ind_2_index,
-            'ind_2_score': ind_2_scores[0],
-            'ind_2_change': ind_2_scores[0] - ind_2_scores[1],
-            'ind_3_index': ind_3_index,
-            'ind_3_score': ind_3_scores[0],
-            'ind_3_change': ind_3_scores[0] - ind_3_scores[1]
+            'ind_1_name': ranked_industry[0],
+            'ind_1_index': cls_df.iloc[-1]['ind_1'],
+            'ind_1_score': total_score.iloc[-1]['ind_1'],
+            'ind_1_change': total_score.iloc[-1]['ind_1'] - total_score.iloc[-2]['ind_1'],
+            'ind_1_state': None,
+            'ind_2_name': ranked_industry[1],
+            'ind_2_index': cls_df.iloc[-1]['ind_2'],
+            'ind_2_score': total_score.iloc[-1]['ind_2'],
+            'ind_2_change': total_score.iloc[-1]['ind_2'] - total_score.iloc[-2]['ind_2'],
+            'ind_2_state': None,
+            'ind_3_name': ranked_industry[2],
+            'ind_3_index': cls_df.iloc[-1]['ind_3'],
+            'ind_3_score': total_score.iloc[-1]['ind_3'],
+            'ind_3_change': total_score.iloc[-1]['ind_3'] - total_score.iloc[-2]['ind_3'],
+            'ind_3_state': None
         }
-        for size in ['ind_1', 'ind_2', 'ind_3']:
-            if data[size + '_change'] > 0:
+
+        for industry in ['ind_1', 'ind_2', 'ind_3']:
+            if data[industry + '_change'] > 0:
                 state = 'line_up'
-            elif data[size + '_change'] == 0:
+            elif data[industry + '_change'] == 0:
                 state = 'line_middle'
             else:
                 state = 'line_down'
-            data[size + '_state'] = state
+            data[industry + '_state'] = state
+
         return data
 
     # *** Mined API #5 ***#
-    # *** UPDATE: 20180823 ***#
+    # *** UPDATE: 20180915 ***#
     def make_rank_data(self):
         ##########################
         ##### Make Rank Data #####
         ##########################
 
-        date = datetime.now().strftime('%Y%m%d')
+        date = timezone.now().strftime('%Y%m%d')
         date_cut = Info.objects.order_by('-date').first().date
         ind_list = [ind[0] for ind in Info.objects.filter(date=date_cut).distinct('industry').values_list('industry')]
         loop_list = ['KOSPI', 'KOSDAQ', 'L', 'M', 'S', 'G', 'V'] + ind_list
@@ -327,7 +394,7 @@ class MarketSignalProcessor:
             print('Successfully saved {} data'.format(filter_by))
 
     # *** Mined API #6 ***#
-    # *** UPDATE: 20180823 ***#
+    # *** UPDATE: 20180915 ***#
     def emit_buysell_signal(self):
         ###############################
         ##### Emit Buysell Signal #####

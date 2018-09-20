@@ -14,10 +14,12 @@ from algorithms.portfolio import PortfolioProcessor
 
 
 class PortfolioTestCase(TestCase):
-    def test(self):
-        p = PortfolioProcessor('')
-        result = p.reduce()
+    def test_get_recent_stock_close_price(self):
+        p = PortfolioProcessor('get_recent_stock_close_price', 'S', ['000020', '000030', '005930'], 10000000)
+        test_stock = '000020'
+        result = p.get_recent_stock_close_price(test_stock)
         self.assertIsNotNone(result)
+        self.assertIsInstance(result, int)
 
 # ## Data 객체 Test 시작 ##
 # @pytest.fixture
