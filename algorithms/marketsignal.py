@@ -90,18 +90,7 @@ class MarketSignalProcessor:
 
         return ret
 
-    # *** Mined API #2 ***#
-    # *** UPDATE: 20180915 ***#
-    def calc_size_info(self):
-        ######################################
-        ##### Calculate Size Information #####
-        ######################################
-
-        # DESCRIPTION: 코스피/코스닥 대형주, 중형주, 소형주 인덱스, 마켓점수, 전일대비 가격변화, 1D 수익률 리턴
-        # + 추가설명: 여기서 마켓점수는 모멘턴, 변동성, 상관관계 점수를 합친 것을 말한다
-        # API ENDPOINT: /mined/api/<version>/?algorithm=MARKET&task=CALC_SIZE_INFO
-        # DATA: 대형주 인덱스(large_cap_index), 중형주 인덱스(mid_cap_index), 소형주 인덱스(small_cap_index)
-
+    def make_size_df(self):
         data = self.data
         data.request('size')
 
@@ -149,6 +138,21 @@ class MarketSignalProcessor:
             tmp.rename(columns={'trd_qty': d[0]}, inplace=True)
             kosdaq_vol_df = pd.concat([kosdaq_vol_df, tmp], axis=1, sort=True)
 
+        return (kospi_cls_df, kospi_vol_df), (kosdaq_cls_df, kosdaq_vol_df)
+
+    # *** Mined API #2 ***#
+    # *** UPDATE: 20180915 ***#
+    def calc_size_info(self):
+        ######################################
+        ##### Calculate Size Information #####
+        ######################################
+
+        # DESCRIPTION: 코스피/코스닥 대형주, 중형주, 소형주 인덱스, 마켓점수, 전일대비 가격변화, 1D 수익률 리턴
+        # + 추가설명: 여기서 마켓점수는 모멘턴, 변동성, 상관관계 점수를 합친 것을 말한다
+        # API ENDPOINT: /mined/api/<version>/?algorithm=MARKET&task=CALC_SIZE_INFO
+        # DATA: 대형주 인덱스(large_cap_index), 중형주 인덱스(mid_cap_index), 소형주 인덱스(small_cap_index)
+
+        (kospi_cls_df, kospi_vol_df), (kosdaq_cls_df, kosdaq_vol_df) = self.make_size_df()
         kp_total_score = score(kospi_cls_df, kospi_vol_df, include_correlation=False)
         kd_total_score = score(kosdaq_cls_df, kosdaq_vol_df, include_correlation=False)
 
@@ -192,13 +196,7 @@ class MarketSignalProcessor:
 
         return data
 
-    # *** Mined API #3 ***#
-    # *** UPDATE: 20180915 ***#
-    def calc_style_info(self):
-        #######################################
-        ##### Calculate Style Information #####
-        #######################################
-
+    def make_style_df(self):
         data = self.data
         data.request('style')
 
@@ -228,6 +226,16 @@ class MarketSignalProcessor:
             tmp.rename(columns={'trd_qty': d[0]}, inplace=True)
             vol_df = pd.concat([vol_df, tmp], axis=1, sort=True)
 
+        return cls_df, vol_df
+
+    # *** Mined API #3 ***#
+    # *** UPDATE: 20180915 ***#
+    def calc_style_info(self):
+        #######################################
+        ##### Calculate Style Information #####
+        #######################################
+
+        cls_df, vol_df = self.make_style_df()
         total_score = score(cls_df, vol_df, include_correlation=False)
 
         data = {
@@ -264,13 +272,7 @@ class MarketSignalProcessor:
 
         return data
 
-    # *** Mined API #4 ***#
-    # *** UPDATE: 20180915 ***#
-    def calc_industry_info(self):
-        ##########################################
-        ##### Calculate Industry Information #####
-        ##########################################
-
+    def make_industry_df(self):
         data = self.data
         data.request('industry')
 
@@ -302,6 +304,16 @@ class MarketSignalProcessor:
             tmp.rename(columns={'trd_qty': d[0]}, inplace=True)
             vol_df = pd.concat([vol_df, tmp], axis=1, sort=True)
 
+        return cls_df, vol_df, ranked_industry
+
+    # *** Mined API #4 ***#
+    # *** UPDATE: 20180915 ***#
+    def calc_industry_info(self):
+        ##########################################
+        ##### Calculate Industry Information #####
+        ##########################################
+
+        cls_df, vol_df, ranked_industry = self.make_industry_df()
         total_score = score(cls_df, vol_df, include_correlation=False)
 
         data = {
@@ -334,67 +346,27 @@ class MarketSignalProcessor:
         return data
 
     # *** Mined API #5 ***#
-    # *** UPDATE: 20180915 ***#
+    # *** UPDATE: 20180920 ***#
     def make_rank_data(self):
         ##########################
         ##### Make Rank Data #####
         ##########################
 
-        date = timezone.now().strftime('%Y%m%d')
-        date_cut = Info.objects.order_by('-date').first().date
-        ind_list = [ind[0] for ind in Info.objects.filter(date=date_cut).distinct('industry').values_list('industry')]
-        loop_list = ['KOSPI', 'KOSDAQ', 'L', 'M', 'S', 'G', 'V'] + ind_list
+        (kospi_cls_df, kospi_vol_df), (kosdaq_cls_df, kosdaq_vol_df) = self.make_size_df()
+        style_cls_df, style_vol_df = self.make_style_df()
+        industry_cls_df, industry_vol_df, ranked_industry = self.make_industry_df()
 
-        ### temporary hotfix ###
-        specs_date_cut = Specs.objects.order_by('-date').first().date
+        cls_df = pd.concat([kospi_cls_df, kosdaq_cls_df, style_cls_df, industry_cls_df], axis=1, sort=True)
+        vol_df = pd.concat([kospi_vol_df, kosdaq_vol_df, style_vol_df, industry_vol_df], axis=1, sort=True)
 
-        for filter_by in loop_list:
-            print(filter_by)
-            if (filter_by == 'KOSPI') or (filter_by == 'KOSDAQ'):
-                mkt_list = [data[0] for data in
-                            Ticker.objects.filter(market_type=filter_by).distinct('code').values_list('code')]
-                queryset = Specs.objects.filter(date=specs_date_cut).filter(code__in=mkt_list).order_by(
-                    'total_score').reverse()[:100]
-            elif (filter_by == 'L') or (filter_by == 'M') or (filter_by == 'S'):
-                s_list = [data[0] for data in
-                          Info.objects.filter(date=date_cut).filter(size_type=filter_by).values_list('code')]
-                queryset = Specs.objects.filter(date=specs_date_cut).filter(code__in=s_list).order_by(
-                    'total_score').reverse()[:100]
-            elif (filter_by == 'G') or (filter_by == 'V'):
-                st_list = [data[0] for data in
-                           Info.objects.filter(date=date_cut).filter(style_type=filter_by).values_list('code')]
-                queryset = Specs.objects.filter(date=specs_date_cut).filter(code__in=st_list).order_by(
-                    'total_score').reverse()[:100]
-            else:
-                i_list = [data[0] for data in
-                          Info.objects.filter(date=date_cut).filter(industry=filter_by).values_list('code')]
-                queryset = Specs.objects.filter(date=specs_date_cut).filter(code__in=i_list).order_by(
-                    'total_score').reverse()[:100]
-            data_num = 1
-            data_list = []
-            for data in queryset:
-                code = data.code
-                name = Ticker.objects.filter(code=code).first().name
-                momentum_score = data.momentum_score
-                volatility_score = data.volatility_score
-                volume_score = data.volume_score
-                total_score = data.total_score
-                rank_inst = RankData(filter_by=filter_by,
-                                     date=date,
-                                     num=data_num,
-                                     code=code,
-                                     name=name,
-                                     momentum_score=momentum_score,
-                                     volatility_score=volatility_score,
-                                     volume_score=volume_score,
-                                     total_score=total_score)
-                data_list.append(rank_inst)
-                data_num += 1
-            RankData.objects.bulk_create(data_list)
-            print('Successfully saved {} data'.format(filter_by))
+        total_rank = score(cls_df, vol_df, include_correlation=False, do_rank=True)
+
+        self.data.redis_client.set('RANK_DATA', total_rank.to_msgpack(compress='zlib'))
+
+        return total_rank
 
     # *** Mined API #6 ***#
-    # *** UPDATE: 20180915 ***#
+    # *** UPDATE: 20180920 ***#
     def emit_buysell_signal(self):
         ###############################
         ##### Emit Buysell Signal #####
@@ -422,4 +394,19 @@ class MarketSignalProcessor:
 
         # 마지막에는,
         ##### 코스피/코스닥의 레이팅, 상승/하락, 지속 일수, 수익률을 리턴한다 #####
-        pass
+
+        (kospi_cls_df, kospi_vol_df), (kosdaq_cls_df, kosdaq_vol_df) = self.make_size_df()
+
+        kp_score = score(kospi_cls_df, kospi_vol_df, include_correlation=False, do_rank=True)
+        kd_score = score(kosdaq_cls_df, kosdaq_vol_df, include_correlation=False, do_rank=True)
+
+        return {
+            'kospi_rating': 'A',
+            'kospi_state': '상승',
+            'kospi_state_last': 3,
+            'kospi_state_return': 0.20,
+            'kosdaq_rating': 'B',
+            'kosdaq_state': '하락',
+            'kosdaq_state_last': 2,
+            'kosdaq_state_return': 0.04
+        }

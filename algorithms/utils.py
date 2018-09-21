@@ -26,7 +26,7 @@ def dual_momentum(data):
         else:
             temp += momentum
     mom = temp / 12  # 위에서 구한 모든 모멘텀값을 더한 후 12로 나눔 (12개월 평균 모멘텀이 된다)
-    return mom.fillna(0)  # nan은 0으로 처리
+    return mom.fillna(0)
 
     # *** UPDATE: 20180815 ***#
 
@@ -44,13 +44,13 @@ def volatility(returns_data, window=12):
 
 # *** UPDATE: 20180816 ***#
 def correlation(returns_data, window=12):
-    corr = returns_data.copy()  # data를 복사한다
+    corr = returns_data.copy()
     corr['Eq_weight'] = list(pd.DataFrame(corr.values.T * (1.0 / len(corr.columns))).sum())
     return corr.rolling(window=window).corr().ix[-1][:-1]
 
 
 # *** UPDATE: 20180915 ***#
-def score(cls_df, vol_df, include_correlation=False):
+def score(cls_df, vol_df, include_correlation=False, do_rank=False):
     from algorithms.data import Data
     ms_data = Data('marketsignal')
     ms_data.request('bm')
@@ -83,5 +83,8 @@ def score(cls_df, vol_df, include_correlation=False):
         total_score = total_score + cor_score // 4
     else:
         total_score = total_score // 3
+
+    if do_rank:
+        total_score = total_score.rank(ascending=True, axis=1)
 
     return total_score

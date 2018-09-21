@@ -9,6 +9,7 @@ feat. peepee
 with love...
 '''
 from django.test import TestCase
+import pandas as pd
 
 from algorithms.marketsignal import MarketSignalProcessor
 
@@ -50,12 +51,16 @@ class MarketSignalTestCase(TestCase):
             for kind in ['name', 'index', 'score', 'change', 'state']:
                 self.assertIsNotNone(result['%s_%s' % (industry, kind)])
 
-    # def test_make_rank_data(self):
-    #     p = MarketSignalProcessor('MAKE_RANK_DATA')
-    #     result = p.reduce()
-    #     self.assertIsNotNone(result)
-    #
-    # def test_emit_buysell_signal(self):
-    #     p = MarketSignalProcessor('EMIT_BUYSELL_SIGNAL')
-    #     result = p.reduce()
-    #     self.assertIsNotNone(result)
+    def test_make_rank_data(self):
+        p = MarketSignalProcessor('MAKE_RANK_DATA')
+        result = p.reduce()
+        self.assertIsNotNone(result)
+        self.assertIsInstance(result, pd.DataFrame)
+
+    def test_emit_buysell_signal(self):
+        p = MarketSignalProcessor('EMIT_BUYSELL_SIGNAL')
+        result = p.reduce()
+        self.assertIsNotNone(result)
+        for market in ['kospi', 'kosdaq']:
+            for kind in ['rating', 'state', 'state_last', 'state_return']:
+                self.assertIsNotNone(result['%s_%s' % (market, kind)])
