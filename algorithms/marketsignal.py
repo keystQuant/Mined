@@ -10,6 +10,7 @@ with love...
 '''
 from django.utils import timezone
 import pandas as pd
+from scipy import stats
 
 from algorithms.data import Data
 from algorithms.utils import score
@@ -397,8 +398,17 @@ class MarketSignalProcessor:
 
         (kospi_cls_df, kospi_vol_df), (kosdaq_cls_df, kosdaq_vol_df) = self.make_size_df()
 
-        kp_score = score(kospi_cls_df, kospi_vol_df, include_correlation=False, do_rank=True)
-        kd_score = score(kosdaq_cls_df, kosdaq_vol_df, include_correlation=False, do_rank=True)
+        kp_score = score(kospi_cls_df, kospi_vol_df, include_correlation=False, do_rank=False)
+        kd_score = score(kosdaq_cls_df, kosdaq_vol_df, include_correlation=False, do_rank=False)
+
+        for index, row in kp_score.iterrows():
+            for item in kp_score:
+                row[item] = stats.percentileofscore(row, row[item]) / 100
+        for index, row in kd_score.iterrows():
+            for item in kd_score:
+                row[item] = stats.percentileofscore(row, row[item]) / 100
+
+        # 여기서 각각의 종목에 대한 레이팅과 cls에 대한 pct로 수익률 지속일/수치는 나타낼수있는데 아래 리턴값처럼 코스피/코스닥 이렇게 2개로 나타내는 방법이 필요함
 
         return {
             'kospi_rating': 'A',

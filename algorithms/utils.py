@@ -55,16 +55,27 @@ def score(cls_df, vol_df, include_correlation=False, do_rank=False):
     ms_data = Data('marketsignal')
     ms_data.request('bm')
     benchmark = ms_data.kospi_index
-    benchmark = benchmark[['date', 'cls_prc']]
-    benchmark.set_index('date', inplace=True)
-    benchmark.index = pd.to_datetime(benchmark.index)
-    benchmark.rename(columns={'cls_prc': 'Benchmark'}, inplace=True)
-    base = pd.concat([cls_df.pct_change(), benchmark.pct_change()], axis=1, sort=True)
-    base.fillna(0, inplace=True)
+
+    benchmark_cls = benchmark[['date', 'cls_prc']]
+    benchmark_cls.set_index('date', inplace=True)
+    benchmark_cls.index = pd.to_datetime(benchmark_cls.index)
+    benchmark_cls.rename(columns={'cls_prc': 'Benchmark'}, inplace=True)
+
+    cls_df = pd.concat([cls_df, benchmark_cls], axis=1, sort=True)
+
+    benchmark_vol = benchmark[['date', 'trd_qty']]
+    benchmark_vol.set_index('date', inplace=True)
+    benchmark_vol.index = pd.to_datetime(benchmark_vol.index)
+    benchmark_vol.rename(columns={'trd_qty': 'Benchmark'}, inplace=True)
+
+    vol_df = pd.concat([vol_df, benchmark_vol], axis=1, sort=True)
 
     vol = cls_df * vol_df
     vol_score = vol.rank(ascending=True, axis=1)
     vol_score = (vol_score / vol_score.max()) * 100
+
+    base = cls_df.pct_change()
+    base.fillna(0, inplace=True)
 
     mom = dual_momentum(base)
     mom_score = mom.rank(ascending=True, axis=1)
@@ -86,5 +97,7 @@ def score(cls_df, vol_df, include_correlation=False, do_rank=False):
 
     if do_rank:
         total_score = total_score.rank(ascending=True, axis=1)
+
+    total_score.fillna(0, inplace=True)
 
     return total_score

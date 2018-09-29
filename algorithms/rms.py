@@ -12,7 +12,7 @@ import numpy as np
 import pandas as pd
 
 from algorithms.data import Data
-from algorithms.utils import score
+from algorithms.utils import correlation, dual_momentum, score, volatility
 
 
 class RMSProcessor:
@@ -81,7 +81,7 @@ class RMSProcessor:
     ##### EAA (Elastic Asset Allocation) 알고리즘에 필요한 계산 #####
 
     # *** UPDATE: 20180816 ***#
-    def EAA(self, mom, vol, corr, portfolio_type):
+    def EAA(self, mom, vol, corr, portfolio_type=''):
         # 1단계: 현금 투자 금액을 계산한다
         if portfolio_type == 'S':
             cash_amount = 0
@@ -162,18 +162,24 @@ class RMSProcessor:
 
     # *** UPDATE: 20180822 ***#
     def backtest_EAA(self):
-        self._set_monthly_close()
-        mom = self._dual_momentum()
-        vol = self._volatility()
-        corr = self._correlation()
+        data = self.data
+        data.request('close')
+
+        cls_df = pd.concat([data.kospi_cls_df, data.kosdaq_cls_df], axis=1, sort=True)
+        base = self.set_periodic_close(cls_df, period='M')
+
+        mom = dual_momentum(base)
+        vol = volatility(base, window=12)
+        corr = correlation(base, window=12)
+
         returns_list = []
-        for date in range(len(self.R)):
+        for date in range(len(self.R)):  # R?
             cash_amt, stock_amt = self.EAA(mom.ix[date], vol.ix[date], corr)
             returns = (self.R.ix[date] * (stock_amt * (1 - cash_amt))).fillna(0)
             returns_list.append(returns.sum())
         weights = []
         for ticker in self.settings['ticker_list']:
-            wt_df = stock_amt * (1 - cash_amt)
+            wt_df = stock_amt * (1 - cash_amt)  # stock_amt/cash_amt 이 중첩되어 연산된 값이 아닌데 사용하고있음
             try:
                 weight = wt_df[ticker]
             except KeyError:
@@ -183,8 +189,8 @@ class RMSProcessor:
         r = wr.mean()[0]
         v = wr.std()[0]
         yc = (wr + 1).cumprod()
-        BM_wr, BM_r, BM_v, BM_yc = self._bm_specs()
-        sr = self._sharpe_ratio(r, BM_r, v)
+        BM_wr, BM_r, BM_v, BM_yc = self._bm_specs()  # _bm_specs?
+        sr = self._sharpe_ratio(r, BM_r, v)  # _sharpe_ratio?
         yield_r = (yc.ix[len(yc) - 1] - 1)[0]
         yc.index = BM_yc.index
         bt = pd.concat([yc, BM_yc], axis=1)
