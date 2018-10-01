@@ -124,22 +124,19 @@ class RMSProcessor:
         yield_curve = (WR + 1).cumprod()
         return WR, port_ret, port_var, yield_curve
 
-    # *** UPDATE: 20180816 ***#
+    # *** UPDATE: 20180915 ***#
     def benchmark_info(self):
         ms_data = Data('marketsignal')
         ms_data.request('bm')
-
-        from stockapi.models import BM
-        BM_qs = BM.objects.filter(name='KOSPI').distinct('date')
-        BM_data = list(BM_qs.exclude(date__lte=self.filter_date).values('date', 'index'))
-        BM = pd.DataFrame(BM_data)
-        BM.set_index('date', inplace=True)
-        BM.index = pd.to_datetime(BM.index)
-        BM.rename(columns={'index': 'Benchmark'}, inplace=True)
-        BM_R = BM.resample(period).last().pct_change()
+        benchmark = ms_data.kospi_index
+        benchmark_cls = benchmark[['date', 'cls_prc']]
+        benchmark_cls.set_index('date', inplace=True)
+        benchmark_cls.index = pd.to_datetime(benchmark_cls.index)
+        benchmark_cls.rename(columns={'cls_prc': 'Benchmark'}, inplace=True)
+        BM_R = benchmark_cls.resample('M').last().pct_change()
         BM_R.dropna(how='all', inplace=True)
         W = pd.Series([1], index=['Benchmark'])
-        return self._backtest_port(W, BM_R)
+        return self.backtest_portfolio(W, BM_R)
 
     # *** UPDATE: 20180816 ***#
     def portfolio_info(self, weights, returns):
@@ -160,8 +157,8 @@ class RMSProcessor:
     def sharpe_ratio(self, r, bm_r, v):
         return (r - bm_r) / v
 
-    # *** UPDATE: 20180822 ***#
-    def backtest_EAA(self):
+    # *** UPDATE: 20180915 ***#
+    def backtest_eaa(self):
         data = self.data
         data.request('close')
 
@@ -173,13 +170,13 @@ class RMSProcessor:
         corr = correlation(base, window=12)
 
         returns_list = []
-        for date in range(len(self.R)):  # R?
-            cash_amt, stock_amt = self.EAA(mom.ix[date], vol.ix[date], corr)
-            returns = (self.R.ix[date] * (stock_amt * (1 - cash_amt))).fillna(0)
+        for index, row in cls_df.iterrows():
+            cash_amt, stock_amt = self.EAA(mom.ix[index], vol.ix[index], corr)
+            returns = (row * (stock_amt * (1 - cash_amt))).fillna(0)
             returns_list.append(returns.sum())
         weights = []
         for ticker in self.settings['ticker_list']:
-            wt_df = stock_amt * (1 - cash_amt)  # stock_amt/cash_amt 이 중첩되어 연산된 값이 아닌데 사용하고있음
+            wt_df = stock_amt * (1 - cash_amt)
             try:
                 weight = wt_df[ticker]
             except KeyError:
@@ -189,8 +186,8 @@ class RMSProcessor:
         r = wr.mean()[0]
         v = wr.std()[0]
         yc = (wr + 1).cumprod()
-        BM_wr, BM_r, BM_v, BM_yc = self._bm_specs()  # _bm_specs?
-        sr = self._sharpe_ratio(r, BM_r, v)  # _sharpe_ratio?
+        BM_wr, BM_r, BM_v, BM_yc = self.benchmark_info()
+        sr = self.sharpe_ratio(r, BM_r, v)
         yield_r = (yc.ix[len(yc) - 1] - 1)[0]
         yc.index = BM_yc.index
         bt = pd.concat([yc, BM_yc], axis=1)

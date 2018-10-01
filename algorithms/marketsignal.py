@@ -8,6 +8,9 @@ Mined.
 feat. peepee
 with love...
 '''
+from functools import reduce
+from operator import mul
+
 from django.utils import timezone
 import pandas as pd
 from scipy import stats
@@ -408,15 +411,53 @@ class MarketSignalProcessor:
             for item in kd_score:
                 row[item] = stats.percentileofscore(row, row[item]) / 100
 
-        # 여기서 각각의 종목에 대한 레이팅과 cls에 대한 pct로 수익률 지속일/수치는 나타낼수있는데 아래 리턴값처럼 코스피/코스닥 이렇게 2개로 나타내는 방법이 필요함
+        def _rating(x):
+            if x >= 0.8:
+                return 'A'
+            elif x >= 0.5:
+                return 'B'
+            else:
+                return 'C'
 
-        return {
-            'kospi_rating': 'A',
-            'kospi_state': '상승',
-            'kospi_state_last': 3,
-            'kospi_state_return': 0.20,
-            'kosdaq_rating': 'B',
-            'kosdaq_state': '하락',
-            'kosdaq_state_last': 2,
-            'kosdaq_state_return': 0.04
-        }
+        kp_rating = kp_score.iloc[-1].apply(_rating)
+        kd_rating = kd_score.iloc[-1].apply(_rating)
+        kp_price = kospi_cls_df.pct_change()
+        kd_price = kosdaq_cls_df.pct_change()
+
+        ret = dict()
+
+        def _make_ret(market, rating, price):
+            r = ret[market] = dict()
+            for item in price:
+                r[item] = {'rating': rating[item]}
+                first = True
+                pct = list()
+                for idx in reversed(price.index):
+                    if first:
+                        first = False
+                        if price.loc[idx, item] >= 0:
+                            r[item]['state'] = '상승'
+                        else:
+                            r[item]['state'] = '하락'
+                    if pct:
+                        if r[item]['state'] == '상승':
+                            if price.loc[idx, item] >= 0:
+                                pct.append(price.loc[idx, item])
+                            else:
+                                r[item]['state_list'] = len(pct)
+                                r[item]['state_return'] = 1 - reduce(mul, (1 + x for x in pct))
+                                break
+                        else:
+                            if price.loc[idx, item] >= 0:
+                                r[item]['state_list'] = len(pct)
+                                r[item]['state_return'] = 1 - reduce(mul, (1 + x for x in pct))
+                                break
+                            else:
+                                pct.append(price.loc[idx, item])
+                    else:
+                        pct.append(price.loc[idx, item])
+
+        _make_ret('kospi', kp_rating, kp_price)
+        _make_ret('kosdaq', kd_rating, kd_price)
+
+        return ret

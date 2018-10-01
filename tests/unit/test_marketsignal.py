@@ -61,6 +61,5 @@ class MarketSignalTestCase(TestCase):
         p = MarketSignalProcessor('EMIT_BUYSELL_SIGNAL')
         result = p.reduce()
         self.assertIsNotNone(result)
-        for market in ['kospi', 'kosdaq']:
-            for kind in ['rating', 'state', 'state_last', 'state_return']:
-                self.assertIsNotNone(result['%s_%s' % (market, kind)])
+        self.assertIn('kospi', result)
+        self.assertIn('kosdaq', result)
