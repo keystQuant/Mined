@@ -30,19 +30,14 @@ with love...
 7. request(self, data_type): 각 알고리즘 타입별로 필요한 데이터를 요청할 수 있다
 '''
 
-from cryptography.fernet import Fernet
 import pandas as pd
 import redis
 
-from mined.crypt_key import KEY
 from mined.settings import CACHE_IP as IP
 
 from algorithms.utils import timeit
 
-cipher_suite = Fernet(KEY)
-
-cache_pw = b'gAAAAABbY9rwNjWChyC-LgHSh64oczJaJqf67T8lcceZ93Bda4v-1AG8xCU7zoLIyArDwfaTLpm4fQuBdJpyhASfZLABdfhKTsKH14WPj48HvjObgc9jltGLWFNWkHBMbmCWzq8J9G64jC-gkcrXz2hGOZ-rFewWbeuMMeYSJ4u_LIxFBfUREl4='
-PW = cipher_suite.decrypt(cache_pw).decode()
+PW = 'da56038fa453c22d2c46e83179126e97d4d272d02ece83eb83a97357e842d065'
 
 # 미래에 레디스 키 이름이 바뀔 수 있기 때문에 아래와 같이 키값들을 하나의 딕셔너리 안에 모아 관리한다
 DATA_MAPPER = {

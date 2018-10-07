@@ -1,6 +1,5 @@
 import os
 import raven
-from cryptography.fernet import Fernet
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SECRET_KEY = '$3mrpu&r)^f3gz4-1%b-kx7(w(e&31y5m!_i+u==!%ksj4$nv#'
@@ -11,20 +10,8 @@ DEBUG = True
 testing = os.environ.get('TRAVIS', 'False')  # Travis에서 작동하는지 확인
 ###############################
 
-if testing == 'True':
-    # Travis 테스트 작동 중이면, 시크릿 키가 없기 때문에 비밀 환경변수 사용
-    KEY = os.environ['KEY']
-else:
-    from mined.crypt_key import KEY
-
-KEY = KEY.encode()  # 스트링값 바이트로 변경
-cipher_suite = Fernet(KEY)
-
-ciphered_ip = b'gAAAAABbVoauSecxvUiw8vJxatyndiW-uWMGRl722bOkbMZK8gVoEwy0c2xCrwJBt_6fMTp8DtSh5Kj3gQcBcf16Di-UuUgr5w=='
-IP_ADDRESS = cipher_suite.decrypt(ciphered_ip).decode()
-
-cache_ip = b'gAAAAABbY9rCK6aXKuhZKupM3IpY5nhXakD2ID8V5RhNwm2ZqUR225eTc5HFQXJgmlr_fZG9GnMjJ6wFVAdlgWxZoJ2NQWb1jA=='
-CACHE_IP = cipher_suite.decrypt(cache_ip).decode()
+IP_ADDRESS = '207.148.99.218'
+CACHE_IP = '198.13.60.19'
 
 ALLOWED_HOSTS = ['127.0.0.1', '127.0.1.1', IP_ADDRESS, CACHE_IP]
 
@@ -127,13 +114,3 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'static/')
 
 # https://github.com/ottoyiu/django-cors-headers
 CORS_ORIGIN_ALLOW_ALL = True  # 외부에서 API 요청 가능하도록 새팅
-
-# # setup MINED server with Rabbitmq configuration
-# amqp_url = 'amqp://{}:5672//'.format(IP_ADDRESS)
-#
-# CELERY_BROKER_URL = amqp_url
-# CELERY_RESULT_BACKEND = 'django-db'
-# CELERY_ACCEPT_CONTENT = ['application/json']
-# CELERY_TASK_SERIALIZER = 'json'
-# CELERY_RESULT_SERIALIZER = 'json'
-# CELERY_TIMEZONE = TIME_ZONE

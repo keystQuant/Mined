@@ -5,11 +5,8 @@ dist: trusty
 sudo: required
 env:
   global:
-  - DJANGO_VERSION=1.11
   - TRAVIS=True
-  - secure: a+5TnJbg7Ic30SOEuenRRvUwlQVQ9VwKmDnSyuhv3Ipty6TnB2NSbFAU7fb8L7/En2R+qWmYuNa0EqAxxkpK56aOX/4U8fCjoFHAHF7WuuALYrdLBL4QQedytbC6kO4J4KkSCRo5Qk5gXt/Z+Eahn88UcZUqpvshjn6xfIBQRMrwin4cx5AZeNP5d+W2hDuk7r672WodaSf9EdeBDBTE8sQQAutcIiqR4PaVcl5axdlMTpMrXzzbwhPYABPgcNVgnDIqu8ywdl9zs9rLU0CKR/JSfMmuq0Cu0MyiqbamATZhDnloRmnqSjy7kX7R8j5TK8QMNf6oQSRjhxeFU9/NrXx/5vdkfcvMcuD9sKlBWsTxTo3Sl/pWW7J/UzxIsUEnWf6d2QeMwiKtj2Tw0tG+Uaae+GEHnTDrmF1wa+36YMtv9qPR7Y4M1KiYstvt0qXSJ5oA+gwrKS1QgWApsYg9nkpI1rg8U0vdBGcmvUuWpvCscbqiAoSCSw9mljt5zOYA212Y0F2XHJJP5nErHbmqMuaavlLoddJt1w/oyKjpVyuF3Fil6AsewkZF+prbBb1sNwfKohsfiudBvgoYj7zQIlYYd7181O4/eSZHavO+PKa4Q6WmPcD8NG8oRFAI05Xuq+eFh8OU9yPtOQt41z32kmTDXoB27RJWFx5nIP20E0E=
 install:
-- pip install -q Django==$DJANGO_VERSION
 - pip install -q -r requirements.txt
 script:
 - python manage.py makemigrations
