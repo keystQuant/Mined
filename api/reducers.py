@@ -63,9 +63,9 @@ class Reducers:
         kospi_cls = data._add_all_stocks_in_one_df(data.kospi_tickers, 'ohlcv', 'cls_prc')
         kosdaq_cls = data._add_all_stocks_in_one_df(data.kosdaq_tickers, 'ohlcv', 'cls_prc')
 
-        if self.redis.key_exists('KOSPI_CLS_PRC')
+        if self.redis.key_exists('KOSPI_CLS_PRC'):
             self.redis.del_key('KOSPI_CLS_PRC')
-        if self.redis.key_exists('KOSDAQ_CLS_PRC')
+        if self.redis.key_exists('KOSDAQ_CLS_PRC'):
             self.redis.del_key('KOSDAQ_CLS_PRC')
 
         self.redis.set_df('KOSPI_CLS_PRC', kospi_cls)
@@ -77,12 +77,12 @@ class Reducers:
 
         if self.redis.key_exists('KOSPI_OHLCV'):
             self.redis.del_key('KOSPI_OHLCV')
-        if self.redis.key_exists('KOSPI_VOL')
+        if self.redis.key_exists('KOSPI_VOL'):
             self.redis.del_key('KOSPI_VOL')
 
         if self.redis.key_exists('KOSDAQ_OHLCV'):
             self.redis.del_key('KOSDAQ_OHLCV')
-        if self.redis.key_exists('KOSDAQ_VOL')
+        if self.redis.key_exists('KOSDAQ_VOL'):
             self.redis.del_key('KOSDAQ_VOL')
 
         self.redis.set_df('KOSPI_OHLCV', data.kospi_cls_df)
@@ -94,9 +94,9 @@ class Reducers:
         kospi_prc_vol = kospi_cls * data.kospi_vol_df
         kosdaq_prc_vol = kosdaq_cls * data.kosdaq_vol_df
 
-        if self.redis.key_exists('KOSPI_PRC_VOL')
+        if self.redis.key_exists('KOSPI_PRC_VOL'):
             self.redis.del_key('KOSPI_PRC_VOL')
-        if self.redis.key_exists('KOSDAQ_PRC_VOL')
+        if self.redis.key_exists('KOSDAQ_PRC_VOL'):
             self.redis.del_key('KOSDAQ_PRC_VOL')
 
         self.redis.set_df('KOSPI_PRC_VOL', kospi_prc_vol)
