@@ -292,9 +292,9 @@ class Data:
             stock = stocks_list[i]  # 종목 코드 이름을 stock 변수로 설정한다
             print('{}/{} - {}'.format(i, len(stocks_list), stock))  # 디버깅 용도
             data_key = stock + DATA_MAPPER[type]  # 캐시 서버에서 사용되는 종목의 키값이다
-            temp_df = self.get_val(data_key)
             try:
                 # 여기서 에러가 발생하면, 데이터가 없다는 것이다
+                temp_df = self.get_val(data_key)
                 temp_df = temp_df[['date', colname]]  # 날짜와 colname 데이터만 뽑아온다
                 temp_df.set_index('date', inplace=True)  # 날짜를 인덱스로 둔다
                 temp_df.rename(columns={colname: stock}, inplace=True)  # colname을 코드이름으로 바꾼다
