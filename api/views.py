@@ -1,3 +1,6 @@
+from django.http import JsonResponse
+from django.views.generic import View
+
 from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -6,6 +9,27 @@ from algorithms.marketsignal import MarketSignalProcessor
 from algorithms.portfolio import PortfolioProcessor
 from algorithms.rms import RMSProcessor
 from algorithms.scanner import ScannerProcessor
+
+
+from .reducers import Reducers
+
+class GatewayView(View):
+    def get(self, request):
+        action_type = request.GET.get('type')
+        env_type = request.GET.get('env')
+        if not env_type:
+            # 테스팅할 때는 local이라고 env_type을 넣어줘야한다
+            env_type = 'remote'
+        reducer_inst = Reducers(action_type, env_type)
+
+        if reducer_inst.has_reducer():
+            status = reducer_inst.reduce()
+            if status == True:
+                return JsonResponse({'status': 'DONE'}, json_dumps_params={'ensure_ascii': True})
+            elif status == False:
+                return JsonResponse({'status': 'FAIL'}, json_dumps_params={'ensure_ascii': True})
+        else: # 리듀서가 존재하지 않는다면
+            return JsonResponse({'status': 'NO ACTION: {}'.format(action_type)}, json_dumps_params={'ensure_ascii': True})
 
 
 # *** UPDATE: 20180806 ***#
