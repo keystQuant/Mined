@@ -90,7 +90,7 @@ class Reducers:
         self.redis.set_df('KOSDAQ_OHLCV', data.kosdaq_cls_df)
         self.redis.set_df('KOSDAQ_VOL', data.kosdaq_vol_df)
 
-        # 4. adj_prc * trd_qty해서 거래대금 만들기
+        # 4. cls_prc * trd_qty해서 거래대금 만들기
         kospi_prc_vol = kospi_cls * data.kospi_vol_df
         kosdaq_prc_vol = kosdaq_cls * data.kosdaq_vol_df
 
