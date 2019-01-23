@@ -57,10 +57,13 @@ class Reducers:
         return True
 
     ##### Preprocessing Process #####
-    def cache_buysell_(self):
+    def cache_buysell_mkt(self):
+        success = False
         pri_rank_df = etc_algo.make_cache_data('pri')
         frg_rank_df = etc_algo.make_cache_data('frg')
         ins_rank_df = etc_algo.make_cache_data('ins')
         self.redis.set_df(PRI_RECENT_DF, pri_rank_df)
         self.redis.set_df(FRG_RECENT_DF, frg_rank_df)
         self.redis.set_df(INS_RECENT_DF, ins_rank_df)
+        success = True
+        return success
