@@ -185,7 +185,7 @@ class RMSProcessor:
         wr = pd.DataFrame(returns_list)
         r = wr.mean()[0]
         v = wr.std()[0]
-        yc = (wr + 1).cumprodg
+        yc = (wr + 1).cumprod()
         BM_wr, BM_r, BM_v, BM_yc = self.benchmark_info()
         sr = self.sharpe_ratio(r, BM_r, v)
         yield_r = (yc.ix[len(yc) - 1] - 1)[0]
