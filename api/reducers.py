@@ -66,8 +66,8 @@ class Reducers:
         for task in [PRI_RECENT_DF, FRG_RECENT_DF, INS_RECENT_DF]:
             response = lf.redis.redis_client.exists(task)
             if response != False:
-                self.redis.redis_client.delete(key)
-                print('{} 이미 있음, 삭제하는 중...'.format(key))
+                self.redis.redis_client.delete(task)
+                print('{} 이미 있음, 삭제하는 중...'.format(task))
 
         self.redis.set_df(PRI_RECENT_DF, pri_rank_df)
         self.redis.set_df(FRG_RECENT_DF, frg_rank_df)
