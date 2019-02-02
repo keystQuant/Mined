@@ -49,7 +49,7 @@ class KeystETCAlgorithm:
         start = time.time()
         global total_mkt_cap
         ticker_list = self.pri_df.columns.tolist()
-        refined_tickers = [t[0] for t in ticker_list if t not in self.except_tickers]
+        refined_tickers = [t for t in ticker_list if t not in self.except_tickers]
         make_data_start = False
         i = 0
         for ticker in refined_tickers:
