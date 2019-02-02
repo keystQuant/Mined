@@ -86,7 +86,10 @@ class KeystETCAlgorithm:
             i+=1
             if i % 100==0:
                 print(i,':',ticker)
-            mkt_divide = analysis_df[[ticker]]/total_mkt_cap[[ticker]]
+            try:
+                mkt_divide = analysis_df[[ticker]]/total_mkt_cap[[ticker]]
+            except KeyError:
+                continue
             temp_rank = mkt_divide.rank(method='min')
             if make_data_start == False:
                 total_rank_df = temp_rank
