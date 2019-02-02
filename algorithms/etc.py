@@ -52,7 +52,7 @@ class KeystETCAlgorithm:
         refined_tickers = [t[0] for t in ticker_list if t not in self.except_tickers]
         make_data_start = False
         i = 0
-        for ticker in ticker_list:
+        for ticker in refined_tickers:
             i+=1
             if i % 100==0:
                 print(i,':',ticker)
