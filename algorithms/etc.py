@@ -7,7 +7,8 @@ from api.cache import RedisClient
 KOSPI_TICKERS = 'KOSPI_TICKERS'
 KOSDAQ_TICKERS = 'KOSDAQ_TICKERS'
 ETF_TICKERS = 'ETF_TICKERS'
-
+ETF_FULL_TICKERS = 'ETF_FULL_TICKERS'
+ETN_TICKERS = 'ETN_TICKER'
 
 MKT_DF_KEY = "MKTCAP_DF"
 PRI_DF_KEY = "PRI_SELL_DF"
@@ -29,11 +30,12 @@ class KeystETCAlgorithm:
         self.mkt_cap_df = self.redis.get_df(MKT_DF_KEY)
         self.kp_tickers = [ticker.decode() for ticker in self.redis.redis_client.lrange(KOSPI_TICKERS, 0 ,-1)]
         self.kd_tickers = [ticker.decode() for ticker in self.redis.redis_client.lrange(KOSDAQ_TICKERS, 0 ,-1)]
-        self.etf_tickers = [ticker.decode() for ticker in self.redis.redis_client.lrange(ETF_TICKERS, 0 ,-1)]
-        self.total_tickers = self.kd_tickers + self.kp_tickers + self.etf_tickers
+        self.total_tickers = self.kd_tickers + self.kp_tickers
+        self.except_tickers = self.redis.get_list(ETF_FULL_TICKERS) + self.redis.get_list(ETN_TICKERS)
         self.kp_ohlcv = self.redis.get_df(KOSPI_OHLCV)
         self.kd_ohlcv = self.redis.get_df(KOSDAQ_OHLCV)
         self.etf_ohlcv = self.redis.get_df(ETF_OHLCV)
+        self.except_ticker = self.redis.get_list(ETF_FULL_TICKERS) + self.redis.get_list(ETN_TICKERS)
         self.total_ohlcv = pd.concat([self.kp_ohlcv, self.kd_ohlcv, self.etf_ohlcv], axis=1)
         print("algoritms start")
 
@@ -47,6 +49,7 @@ class KeystETCAlgorithm:
         start = time.time()
         global total_mkt_cap
         ticker_list = self.pri_df.columns.tolist()
+        refined_tickers = [t[0] for t in ticker_list if t not in self.except_tickers]
         make_data_start = False
         i = 0
         for ticker in ticker_list:
