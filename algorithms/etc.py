@@ -55,7 +55,7 @@ class KeystETCAlgorithm:
         for ticker in refined_tickers:
             i+=1
             if i % 100==0:
-                print(i,':',ticker)
+                print(i,':', ticker, "Caculate MARKET CAP")
             mkt_df = mkt_cap_df[[ticker]]*self.total_ohlcv[[ticker]]
             if make_data_start == False:
                 total_mkt_cap = mkt_df
@@ -80,12 +80,13 @@ class KeystETCAlgorithm:
         else:
             print("Error")
         ticker_list = analysis_df.columns.tolist()
+        refined_tickers = [t for t in ticker_list if t not in self.except_tickers]
         make_data_start = False
         i = 0
-        for ticker in ticker_list:
+        for ticker in refined_tickers:
             i+=1
             if i % 100==0:
-                print(i,':',ticker)
+                print(mode, "rank :", i,':',ticker)
             try:
                 mkt_divide = analysis_df[[ticker]]/total_mkt_cap[[ticker]]
             except KeyError:
